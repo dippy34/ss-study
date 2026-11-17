@@ -146,17 +146,17 @@
     x.fillStyle = COL.ink; x.fillRect(0, 0, S, S);
     let seed = 7; const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
     for (let i = 0; i < 14; i++) { x.fillStyle = rgba(col, 0.01 + rnd() * 0.014); const bx = rnd() * S, by = rnd() * S, br = 30 + rnd() * 90; for (const ox of [-S, 0, S]) for (const oy of [-S, 0, S]) { x.beginPath(); x.arc(bx + ox, by + oy, br, 0, TAU); x.fill(); } }
-    x.strokeStyle = rgba(col, 0.13); x.lineWidth = 1; x.beginPath();
+    x.strokeStyle = rgba(col, 0.08); x.lineWidth = 1; x.beginPath();
     for (let i = 0; i <= S; i += 128) { x.moveTo(i + 0.5, 0); x.lineTo(i + 0.5, S); x.moveTo(0, i + 0.5); x.lineTo(S, i + 0.5); } x.stroke();
     x.strokeStyle = rgba(col, 0.06); x.setLineDash([3, 7]); x.beginPath();
     for (let i = 64; i <= S; i += 128) { x.moveTo(i + 0.5, 0); x.lineTo(i + 0.5, S); x.moveTo(0, i + 0.5); x.lineTo(S, i + 0.5); } x.stroke(); x.setLineDash([]);
-    x.strokeStyle = rgba(col, 0.2); x.lineWidth = 1.6; x.lineCap = 'round'; x.lineJoin = 'round';
+    x.strokeStyle = rgba(col, 0.09); x.lineWidth = 1.6; x.lineCap = 'round'; x.lineJoin = 'round';
     for (let i = 0; i < 9; i++) { const mx = 40 + rnd() * (S - 80), my = 40 + rnd() * (S - 80); x.beginPath(); x.moveTo(mx - 14, my + 8); x.lineTo(mx - 5, my - 7); x.lineTo(mx + 2, my + 3); x.lineTo(mx + 9, my - 10); x.lineTo(mx + 19, my + 8); x.stroke(); }
     for (let i = 0; i < 10; i++) { const mx = 30 + rnd() * (S - 60), my = 30 + rnd() * (S - 60); x.beginPath(); x.moveTo(mx - 10, my); x.quadraticCurveTo(mx - 5, my - 6, mx, my); x.quadraticCurveTo(mx + 5, my + 6, mx + 10, my); x.stroke(); }
-    x.strokeStyle = rgba(col, 0.26); x.setLineDash([2, 6]); x.beginPath(); x.moveTo(0, 150); x.bezierCurveTo(140, 90, 250, 260, 512, 150); x.stroke(); x.setLineDash([]);
-    const cx = 392, cy = 384; x.strokeStyle = rgba(col, 0.3); x.lineWidth = 1.2; x.beginPath(); x.arc(cx, cy, 26, 0, TAU); x.stroke();
-    x.fillStyle = rgba(col, 0.3); for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2; x.beginPath(); x.moveTo(cx + Math.cos(a) * 36, cy + Math.sin(a) * 36); x.lineTo(cx + Math.cos(a + 1.35) * 7, cy + Math.sin(a + 1.35) * 7); x.lineTo(cx + Math.cos(a - 1.35) * 7, cy + Math.sin(a - 1.35) * 7); x.closePath(); x.fill(); }
-    for (let i = 0; i < 7; i++) dot(x, 20 + rnd() * (S - 40), 20 + rnd() * (S - 40), 2.2, rgba(col, 0.35));
+    x.strokeStyle = rgba(col, 0.1); x.setLineDash([2, 6]); x.beginPath(); x.moveTo(0, 150); x.bezierCurveTo(140, 90, 250, 260, 512, 150); x.stroke(); x.setLineDash([]);
+    const cx = 392, cy = 384; x.strokeStyle = rgba(col, 0.12); x.lineWidth = 1.2; x.beginPath(); x.arc(cx, cy, 26, 0, TAU); x.stroke();
+    x.fillStyle = rgba(col, 0.12); for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2; x.beginPath(); x.moveTo(cx + Math.cos(a) * 36, cy + Math.sin(a) * 36); x.lineTo(cx + Math.cos(a + 1.35) * 7, cy + Math.sin(a + 1.35) * 7); x.lineTo(cx + Math.cos(a - 1.35) * 7, cy + Math.sin(a - 1.35) * 7); x.closePath(); x.fill(); }
+    for (let i = 0; i < 7; i++) dot(x, 20 + rnd() * (S - 40), 20 + rnd() * (S - 40), 2.2, rgba(col, 0.14));
     return (TILES[col] = ctx.createPattern(c, 'repeat'));
   }
 

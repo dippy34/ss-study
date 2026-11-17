@@ -1,0 +1,10 @@
+/* calm.css — declutter pass: fewer things on screen at once. Loaded last. */
+/* in-run HUD keeps: level, health, the M-A-I-N tracker, time, coins, pause */
+.hud-kill,.hud-weps,.hud-streak,.hud-act{display:none!important}
+/* upgrade cards: icon, name, what it does */
+.pk-hk,.pk-key{display:none!important}
+/* question card: no topic tag (it could give the answer away) and no extra blurb */
+.qz-top,.qz-sub{display:none!important}
+/* title screen: play, one readiness bar, the main buttons */
+.mt-pitch,.mt-top .eyebrow,.mt-topics,.mt-ready-line{display:none!important}
+.mt-menu2>button:nth-child(2),.mt-menu2>button:nth-child(4){display:none!important}

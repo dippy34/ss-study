@@ -8,7 +8,7 @@ import pathlib, sys
 
 ROOT = pathlib.Path(__file__).resolve().parent
 SRC = ROOT / "src"
-CSS = ["base.css", "game.css", "quiz.css", "meta.css"]
+CSS = ["base.css", "game.css", "quiz.css", "meta.css", "calm.css"]
 JS = ["core.js", "save.js", "audio.js", "data.js", "quiz.js", "meta.js", "game-data.js", "game-render.js", "game.js"]
 
 TITLE = "Powder Keg 1914"
