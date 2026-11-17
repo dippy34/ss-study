@@ -75,5 +75,6 @@ await Game.debug.bench({ weapon: 'cannon', lvl: 6, act: 4 })     // one weapon a
 
 `bot` is `'casual'`, `'average'` or `'skilled'`; `acc` is the share of questions answered right. The difficulty
 curve (`PK.TUNE` and the per-act tables in `game-data.js`) was tuned so that an average player with no upgrades
-usually reaches Act 4, wins about one run in ten, and wins most runs once about half the shop is bought — and so
-that knowing the answers matters more than reflexes.
+usually reaches Act 4 but rarely wins, a beginner still clears Act 1, about half the runs are won once half the
+shop is bought and nearly all with the whole shop (then the Danger levels take over) — and so that knowing the
+answers matters more than reflexes: answering 95% right with no upgrades wins as often as dodging like an expert.
