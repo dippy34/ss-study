@@ -184,7 +184,7 @@
     const others = terms.filter((o) => o.id !== t.id);
     const why = t.name + ': ' + t.def;
     MC('def:' + t.id, 'Which term means: "' + t.short + '"?', [t.name].concat(some(others, 3).map((o) => o.name)), why);
-    MC('def:' + t.id, 'What is ' + t.name.toLowerCase() + '?', [t.short].concat(some(others, 3).map((o) => o.short)), why);
+    MC('def:' + t.id, 'What ' + (t.id === 'alliances' ? 'are' : 'is') + ' ' + t.name.toLowerCase() + '?', [t.short].concat(some(others, 3).map((o) => o.short)), why);
     MC('def:' + t.id, 'Pick the best definition of ' + t.name.toLowerCase() + '.', [t.short].concat(some(others, 3).map((o) => o.short)), why);
     if (t.clue) {
       const clueOthers = others.filter((o) => o.clue);

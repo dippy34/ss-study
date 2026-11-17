@@ -1575,7 +1575,7 @@ html{box-sizing:border-box}
     const others = terms.filter((o) => o.id !== t.id);
     const why = t.name + ': ' + t.def;
     MC('def:' + t.id, 'Which term means: "' + t.short + '"?', [t.name].concat(some(others, 3).map((o) => o.name)), why);
-    MC('def:' + t.id, 'What is ' + t.name.toLowerCase() + '?', [t.short].concat(some(others, 3).map((o) => o.short)), why);
+    MC('def:' + t.id, 'What ' + (t.id === 'alliances' ? 'are' : 'is') + ' ' + t.name.toLowerCase() + '?', [t.short].concat(some(others, 3).map((o) => o.short)), why);
     MC('def:' + t.id, 'Pick the best definition of ' + t.name.toLowerCase() + '.', [t.short].concat(some(others, 3).map((o) => o.short)), why);
     if (t.clue) {
       const clueOthers = others.filter((o) => o.clue);
@@ -3731,7 +3731,7 @@ html{box-sizing:border-box}
   const xpFor = (l) => Math.floor(4 + l * 3.5 + Math.pow(l, 1.9));
   function newPlayer(ch, bon) {
     const p = { x: 0, y: 0, vx: 0, vy: 0, r: 13, face: 0, moving: false, hp: 100, maxHp: 100, iframes: 1, level: 1, xp: 0, xpNext: xpFor(1), pendingLv: 0,
-      weapons: [], passives: {}, char: ch, bon, rerolls: bon.rerolls | 0, revives: 1 + (bon.revives | 0), orbA: 0, orbPos: [], auraR: 0,
+      weapons: [], passives: {}, ov: { dmg: 0, hp: 0, cd: 0 }, char: ch, bon, rerolls: bon.rerolls | 0, revives: 1 + (bon.revives | 0), orbA: 0, orbPos: [], auraR: 0,
       baseMaxHp: Math.max(40, 100 + (bon.maxHp || 0)), dmgMult: 1, cdMult: 1, spdMult: 1, magnet: 1, xpMult: 1, coinMult: 1, armor: 0, regen: 0, crit: 0.05, area: 1 };
     recalc(p); p.hp = p.maxHp;
     p.weapons.push({ id: WD[ch.startWeapon] ? ch.startWeapon : 'blaster', lvl: 1, t: 0.4, acc: 0 });
@@ -3739,9 +3739,9 @@ html{box-sizing:border-box}
   }
   function recalc(p) {
     const b = p.bon, L = (id) => p.passives[id] || 0;
-    p.maxHp = Math.round(p.baseMaxHp + 20 * L('heart'));
-    p.dmgMult = (b.dmgMult || 1) * (1 + 0.12 * L('power'));
-    p.cdMult = (b.cooldownMult || 1) * Math.pow(0.92, L('haste'));
+    p.maxHp = Math.round(p.baseMaxHp + 20 * L('heart') + 10 * p.ov.hp);
+    p.dmgMult = (b.dmgMult || 1) * (1 + 0.12 * L('power')) * (1 + 0.06 * p.ov.dmg);
+    p.cdMult = (b.cooldownMult || 1) * Math.pow(0.92, L('haste')) * Math.pow(0.97, p.ov.cd);
     p.spdMult = (b.speedMult || 1) * (1 + 0.09 * L('boots'));
     p.magnet = (b.magnetMult || 1) * (1 + 0.3 * L('magnet'));
     p.xpMult = (b.xpMult || 1) * (1 + 0.1 * L('scholar'));
@@ -4235,13 +4235,19 @@ html{box-sizing:border-box}
     for (const id in PD) { const l = p.passives[id] || 0; if (l > 0) { if (l < PD[id].max) pool.push({ kind: 'p', id, lvl: l + 1, wt: 1.3 }); } else if (pN < MAXP) pool.push({ kind: 'p', id, lvl: 1, wt: 0.9 }); }
     const out = [];
     while (out.length < n && pool.length) { let tot = 0; for (const o of pool) tot += o.wt; let r = Math.random() * tot, k = 0; for (; k < pool.length - 1; k++) { r -= pool[k].wt; if (r <= 0) break; } out.push(pool.splice(k, 1)[0]); }
-    if (!out.length) { out.push({ kind: 'heal' }); if (n > 1) out.push({ kind: 'coins' }); }
+    if (out.length < n) { const extra = U.shuffle([{ kind: 'o', id: 'dmg' }, { kind: 'o', id: 'hp' }, { kind: 'o', id: 'cd' }, { kind: 'coins' }]); while (out.length < n && extra.length) out.push(extra.pop()); }
     return out;
   }
+  const OVER = {
+    dmg: { name: 'Total War', icon: '🔥', key: 'M', desc: '+6% damage for the rest of the run.', hook: 'Because of alliances, a local conflict became a world war.' },
+    hp: { name: 'Home Front', icon: '🏠', key: 'N', desc: '+10 max HP and heal 30.', hook: 'The USA stayed neutral in 1914 — that policy is isolationism.' },
+    cd: { name: 'Rapid Fire', icon: '🎯', key: 'A', desc: 'Every weapon fires 3% faster.', hook: 'Germany declared war on Russia and France; then Great Britain declared war on Germany.' },
+  };
   function apply(o) {
     const p = g.player;
     if (o.kind === 'w') { const w = p.weapons.find((x) => x.id === o.id); if (w) w.lvl++; else p.weapons.push({ id: o.id, lvl: 1, t: 0.3, acc: 0 }); }
     else if (o.kind === 'p') { p.passives[o.id] = (p.passives[o.id] || 0) + 1; recalc(p); if (o.id === 'heart') heal(20, true); }
+    else if (o.kind === 'o') { p.ov[o.id]++; recalc(p); if (o.id === 'hp') heal(30, true); }
     else if (o.kind === 'heal') heal(p.maxHp * 0.4);
     else if (o.kind === 'coins') g.coins += 25;
     recalc(p); hudWeps();
@@ -4250,8 +4256,9 @@ html{box-sizing:border-box}
     const d = o.kind === 'w' ? WD[o.id] : o.kind === 'p' ? PD[o.id] : null; let name, icon, lv, desc, hook = '', key = 'x';
     if (o.kind === 'w') { name = d.name; icon = d.icon; lv = o.lvl === 1 ? 'NEW WEAPON' : 'LEVEL ' + (o.lvl - 1) + ' → ' + o.lvl; desc = d.lv[o.lvl - 1]; hook = d.hook; key = d.key; }
     else if (o.kind === 'p') { name = d.name; icon = d.icon; lv = o.lvl === 1 ? 'NEW BOOST' : 'LEVEL ' + (o.lvl - 1) + ' → ' + o.lvl; desc = d.per; hook = d.hook; key = d.key; }
+    else if (o.kind === 'o') { const od = OVER[o.id]; name = od.name; icon = od.icon; lv = 'MASTERY · STACKS FOREVER'; desc = od.desc; hook = od.hook; key = od.key; }
     else if (o.kind === 'heal') { name = 'Field Medic'; icon = '❤️'; lv = 'MAXED OUT'; desc = 'Heal 40% of your health.'; }
-    else { name = 'War Chest'; icon = '💰'; lv = 'MAXED OUT'; desc = '+25 coins.'; }
+    else { name = 'War Chest'; icon = '💰'; lv = 'BONUS'; desc = '+25 coins.'; }
     return U.el('button', { class: 'pk-card k-' + key.toLowerCase() + (o.lvl === 1 ? ' new' : ''), onclick: () => choose(i) },
       U.el('span', { class: 'pk-ic', text: icon }),
       U.el('span', { class: 'pk-body' }, U.el('span', { class: 'pk-lv', text: lv }), U.el('span', { class: 'pk-nm', text: name }), U.el('span', { class: 'pk-ds', text: desc }), hook ? U.el('span', { class: 'pk-hk', text: hook }) : null),
@@ -4424,6 +4431,7 @@ html{box-sizing:border-box}
     g.player = newPlayer(ch, bon); g.state = 'play'; g.act = Math.max(0, Math.min(ACTS.length - 1, o.act | 0)); g.actDef = ACTS[g.act]; g.maxAct = g.act + 1; g.cap = U.isTouch() ? 170 : 220;
     for (const k in HV) delete HV[k]; hudShow(true); hudAct(); hudWeps(); music(g.actDef.music);
     banner('ACT ' + g.actDef.n + ' · ' + g.actDef.name, g.actDef.def, g.actDef.color, g.actDef.key === 'S' ? '⚡' : g.actDef.key, 5600);
+    text(0, 64, U.isTouch() ? 'Drag anywhere to move' : 'Move with WASD or the arrow keys', '#ffffff', 15, 4.5);
     last = performance.now();
     try { navigator.wakeLock && navigator.wakeLock.request('screen').catch(() => {}); } catch (e) {}
   }
