@@ -12,7 +12,7 @@
   const KEYS = { M: { cls: 'm', label: 'MILITARISM' }, A: { cls: 'a', label: 'ALLIANCES' }, I: { cls: 'i', label: 'IMPERIALISM' }, N: { cls: 'n', label: 'NATIONALISM' }, S: { cls: 's', label: 'THE SPARK' }, X: { cls: 'x', label: 'NOT A CAUSE' } };
   const TOPIC = { vocab: 'Part 1 · Key Vocabulary', sides: 'Part 2 · The Two Sides', compete: 'Part 3 · Competition', spark: 'Part 4 · The Spark' };
   const TOPIC_SHORT = { vocab: 'Vocabulary', sides: 'Two Sides', compete: 'Competition', spark: 'The Spark' };
-  const CREDIT = [0, 0.4, 0.75, 1, 1, 1];
+  const CREDIT = [0, 0.5, 1, 1, 1, 1];   /* right twice in a row = mastered */
 
   let S = null;
   let openCount = 0;
@@ -103,7 +103,7 @@
     let sum = 0, mastered = 0, seen = 0;
     STUDY.facts.forEach((f) => {
       const x = S.mastery[f.id]; const b = x ? x.b : 0; const c = CREDIT[b] || 0;
-      sum += c; if (b >= 3) mastered++; if (x && x.s > 0) seen++;
+      sum += c; if (b >= 2) mastered++; if (x && x.s > 0) seen++;
       const t = by[f.topic] || (by[f.topic] = [0, 0]); t[0] += c; t[1]++;
     });
     const byTopic = {};
@@ -665,7 +665,7 @@
     st();
     return new Promise((resolve) => {
       const e = U.esc;
-      const dot = (id) => { const x = S.mastery[id]; const bx = x ? x.b : 0; return '<i class="cx-dot b' + bx + (x ? '' : ' new') + '" title="' + (bx >= 3 ? 'Mastered' : x ? 'Learning' : 'Not asked yet') + '"></i>'; };
+      const dot = (id) => { const x = S.mastery[id]; const bx = x ? x.b : 0; return '<i class="cx-dot b' + (bx >= 2 ? 3 : bx) + (x ? '' : ' new') + '" title="' + (bx >= 2 ? 'Mastered' : x ? 'Learning' : 'Not asked yet') + '"></i>'; };
       const R = readiness();
       const k = (t) => KEYS[t.key].cls;
       const causes = STUDY.terms.filter((t) => t.cause), nots = STUDY.terms.filter((t) => !t.cause);

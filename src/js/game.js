@@ -374,7 +374,7 @@
         if ((b.a2 -= dt) <= 0) { b.a2 = 12; b.vac = 2.4; b.healLeft = b.maxHp * 0.04; text(b.x, b.y - b.r - 24, 'GRABBING RESOURCES!', COL.I, 16, 1.6); sfx('whoosh'); }
         if (b.vac > 0) { b.vac -= dt; for (const q of g.gems) { if (q.dead) continue; const dx = b.x - q.x, dy = b.y - q.y, d = Math.hypot(dx, dy) || 1; q.pull = false; q.x += dx / d * 430 * dt; q.y += dy / d * 430 * dt; if (d < b.r) { q.dead = true; const h = Math.min(b.healLeft, b.maxHp * 0.0004 * q.v); b.healLeft -= h; b.hp = Math.min(b.maxHp, b.hp + h); } } }
       } },
-    general: { r: 44, spd: 88, dmg: 17, key: 'N',
+    general: { r: 44, spd: 88, dmg: 15, key: 'N',
       init(b) { b.st = 'walk'; b.cd = 2.5; b.n = 0; b.a3 = 5; b.tm = 0; },
       update(b, dt, p) {
         const low = b.hp < b.maxHp * 0.5, fast = (low ? 1.3 : 1) * (b.enr > 0 ? 1.2 : 1);
@@ -416,7 +416,7 @@
     if (b.enr > 0 && b.enr < 900) b.enr -= dt;
     if (b.shield && b.shieldT > 0 && (b.shieldT -= dt) <= 0) b.shield = false;
     if (b.stun > 0) b.stun -= dt; else b.def.update(b, dt, p);
-    const rr = p.r + b.r - 8, dx = p.x - b.x, dy = p.y - b.y; if (dx * dx + dy * dy < rr * rr) hitPlayer(b.dmg * (b.st === 'dash' ? 1.4 : 1));
+    const rr = p.r + b.r - 8, dx = p.x - b.x, dy = p.y - b.y; if (dx * dx + dy * dy < rr * rr) hitPlayer(b.dmg * (b.st === 'dash' ? 1.25 : 1));
   }
   function bossDown(b) {
     burst(b.x, b.y, COL[b.def.key], 40); burst(b.x, b.y, '#ffffff', 22); ring(b.x, b.y, b.r, b.r * 6, COL[b.def.key], 10, 0.7); shake(16); sfx('boss_die');
@@ -587,7 +587,7 @@
     const p = g.player; begin(); let first = true, ok = true;
     while (p.pendingLv > 0 && g.state === 'play') {
       p.pendingLv--; p.level++;
-      if (first) { first = false; sfx('levelup'); const res = await ask({ context: 'levelup', key: g.actDef.key }); ok = !!(res && res.correct); answered(ok); }
+      if (first) { first = false; sfx('levelup'); const res = await ask({ context: 'levelup', key: Math.random() < 0.5 ? g.actDef.key : undefined }); ok = !!(res && res.correct); answered(ok); }
       if (g.state !== 'play') break;
       await pick(ok ? (g.streak >= 3 ? 4 : 3) : 1, ok ? 'CHOOSE YOUR UPGRADE' : 'RANDOM UPGRADE', ok ? (g.streak >= 3 ? 'Answer streak x' + g.streak + ': bonus 4th choice!' : 'Level ' + p.level + ' reached') : 'Missed it. Get the next question right to choose.');
     }
@@ -729,7 +729,8 @@
     g.player = newPlayer(ch, bon); g.state = 'play'; g.act = Math.max(0, Math.min(ACTS.length - 1, o.act | 0)); g.actDef = ACTS[g.act]; g.maxAct = g.act + 1; g.cap = U.isTouch() ? 170 : 220;
     for (const k in HV) delete HV[k]; hudShow(true); hudAct(); hudWeps(); music(g.actDef.music);
     banner('ACT ' + g.actDef.n + ' · ' + g.actDef.name, g.actDef.def, g.actDef.color, g.actDef.key === 'S' ? '⚡' : g.actDef.key, 5600);
-    text(0, 64, U.isTouch() ? 'Drag anywhere to move' : 'Move with WASD or the arrow keys', '#ffffff', 15, 4.5);
+    R.resize(g);
+    text(0, 64, !U.isTouch() ? 'Move with WASD or the arrow keys' : window.innerWidth > 900 ? 'Drag to move, or use WASD / arrow keys' : 'Drag anywhere to move', '#ffffff', 15, 4.5);
     last = performance.now();
     try { navigator.wakeLock && navigator.wakeLock.request('screen').catch(() => {}); } catch (e) {}
   }
@@ -737,6 +738,7 @@
     cv = document.getElementById('game-canvas'); modalRoot = document.getElementById('modals');
     R.init(cv); g = blank(); R.resize(g); buildHud(); hudShow(false); seedDeco();
     window.addEventListener('resize', () => R.resize(g));
+    try { new ResizeObserver(() => { if (cv.clientWidth !== g.W || cv.clientHeight !== g.H) R.resize(g); }).observe(cv); } catch (e) {}
     window.addEventListener('keydown', onKeyDown); window.addEventListener('keyup', onKeyUp); window.addEventListener('blur', () => { keys = {}; g.joy.on = false; });
     cv.addEventListener('pointerdown', pDown); cv.addEventListener('pointermove', pMove); cv.addEventListener('pointerup', pUp); cv.addEventListener('pointercancel', pUp);
     document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); else last = performance.now(); });
