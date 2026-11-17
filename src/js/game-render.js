@@ -253,7 +253,7 @@
   R.resize = function (g) {
     const dpr = Math.min(window.devicePixelRatio || 1, 2), w = cv.clientWidth || 800, h = cv.clientHeight || 600;
     g.W = w; g.H = h; g.dpr = dpr; cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
-    g.scale = Math.max(0.88, Math.min(1.5, Math.sqrt(w * h) / 740)); g.vw = w / g.scale; g.vh = h / g.scale;
+    g.scale = Math.max(1.0, Math.min(1.55, Math.sqrt(w * h) / 740)); g.vw = w / g.scale; g.vh = h / g.scale;
   };
   const GEMC = ['#58e6c9', '#58b4ff', '#c58bff', '#ffd04d'];
   function gemTier(v) { return v >= 25 ? 3 : v >= 6 ? 2 : v >= 2 ? 1 : 0; }
@@ -389,5 +389,5 @@
     if (vigKey !== key) { vig = c.createRadialGradient(g.W / 2, g.H / 2, Math.min(g.W, g.H) * 0.3, g.W / 2, g.H / 2, Math.hypot(g.W, g.H) * 0.6); vig.addColorStop(0, 'rgba(4,9,14,0)'); vig.addColorStop(1, 'rgba(4,9,14,' + a + ')'); vigKey = key; }
     c.fillStyle = vig; c.fillRect(0, 0, g.W, g.H);
   }
-  R.sprite = sprite;
+  R.sprite = sprite; R._tile = tile; R._fire = fire; R._drawBoss = drawBoss; R._crown = crown;
 })();

@@ -104,6 +104,12 @@
       waves: [[0, 4.5, { spark: 8, patriot: 2, zealot: 1 }], [25, 5.5, { spark: 8, zealot: 2, grabber: 2, link: 2 }], [55, 6.5, { spark: 8, zealot: 3, brute: 3, gunboat: 2, link: 2 }], [85, 7.5, { spark: 9, zealot: 3, brute: 3, gunboat: 2, grabber: 3, link: 3 }]] },
   ];
 
+  /* boss facts art + menus can read without the engine */
+  PK.BOSS_INFO = {
+    dreadnought: { key: 'M', r: 46, name: 'THE DREADNOUGHT' }, pact: { key: 'A', r: 36, name: 'THE PACT TWINS' }, emperor: { key: 'I', r: 48, name: 'EMPEROR GRAB' },
+    general: { key: 'N', r: 44, name: 'GENERAL PRIDE' }, spark: { key: 'S', r: 40, name: 'THE SPARK' },
+  };
+
   /* little lines shown when a kill streak pops — every one is a study-guide fact */
   PK.STREAK_LINES = [
     'CHAIN REACTION!', 'M · A · I · N', 'BEARS ATE GREEN ORANGES', 'POWDER KEG!', 'SARAJEVO, 1914', 'ARMS RACE!',
