@@ -97,7 +97,7 @@
       if (e.shield) { if (Math.random() < 0.05) text(e.x + rnd(-20, 20), e.y - e.r - 8, 'SHIELDED', '#9fe8ff', 12); return false; }
       e.hp -= d; g.dmgAcc += d; g.dmgTotal += d; if (!quiet) e.flash = 0.07;
       if (e.def.onHurt) e.def.onHurt(e);
-      if (e.gates.length && e.hp <= e.maxHp * e.gates[0]) { e.hp = Math.max(1, e.maxHp * e.gates[0]); e.gates.shift(); e.shield = true; e.shieldT = 0; g.pendBoss = e; }
+      if (e.gates.length && e.hp <= e.maxHp * e.gates[0]) { e.hp = Math.max(1, e.maxHp * e.gates[0]); e.gates.shift(); e.shield = true; e.shieldT = 0; }
       if (!quiet) sfx('boss_hit');
     } else {
       e.hp -= d; g.dmgAcc += d; g.dmgTotal += d; if (!quiet) e.flash = 0.07;
@@ -534,20 +534,22 @@
         if (g.slowT > 0 && (g.slowT -= dt) <= 0 && g.state === 'play') g.timeScale = 1;
         for (let i = 0, n = DBG.speed | 0 || 1; i < n; i++) { update(dt * g.timeScale); if (g.state === 'play') flows(); if (g.busy || g.paused || g.state !== 'play') break; }
       }
-      R.draw(g); hudSync(); errN = 0;
+      const frozen = g.state !== 'idle' && (g.busy || g.paused) && !(g.cine > 0);
+      if (!frozen || !g.still) { R.draw(g); hudSync(); }
+      g.still = frozen; errN = 0;
     } catch (err) {
       if (++errN < 4) { try { console.error('[game] frame error', err); } catch (e) {} }
       if (errN > 45 && g.state !== 'idle') { errN = 0; bail(); }
     }
     /* slow device? drop the canvas resolution a step so the game stays smooth */
-    if (g.state === 'play' && !g.busy && !g.paused && DBG.speed <= 1) { if (raw > 0.04) lagT += raw; else lagT = Math.max(0, lagT - raw * 0.5); if (lagT > 2.5 && (PK.dprCap || 2) > 1) { lagT = 0; PK.dprCap = (PK.dprCap || 2) > 1.5 ? 1.5 : 1; PK.lowFx = true; R.resize(g); } } else lagT = 0;
+    if (g.state === 'play' && !g.busy && !g.paused && DBG.speed <= 1) { if (raw > 0.04) lagT += Math.min(raw, 0.1); else lagT = Math.max(0, lagT - raw * 0.5); if (lagT > 3 && (PK.dprCap || 2) > 1) { lagT = 0; PK.dprCap = (PK.dprCap || 2) > 1.5 ? 1.5 : 1; PK.lowFx = true; R.resize(g); } } else lagT = 0;
   }
   /* last resort after repeated frame errors: back to the menu instead of a frozen screen */
   function bail() { try { closeMine(); toIdle(); if (window.Toast) Toast.show('The game hit a snag and went back to the menu. Your progress is safe.', { kind: 'bad', ms: 4500 }); if (window.Meta && Meta.showTitle) Meta.showTitle(); } catch (e) {} }
   function flows() {
-    if (g.busy) return; const p = g.player;
+    if (g.busy) return; const p = g.player, sb = g.bosses.find((b) => b.hp > 0 && b.shield && !(b.shieldT > 0));
     if (g.pendDown) { g.pendDown = false; downFlow(); }
-    else if (g.pendBoss) { const b = g.pendBoss; g.pendBoss = null; bossFlow(b); }
+    else if (sb) bossFlow(sb);
     else if (g.pendChest > 0) { g.pendChest--; chestFlow(); }
     else if (p.pendingLv > 0) levelFlow();
   }
@@ -637,17 +639,18 @@
   }
   async function downFlow() {
     const p = g.player; begin();
-    if (p.revives > 0) {
-      let ok = false;
-      if (DBG.auto != null) { p.revives--; ok = Math.random() < Math.pow(simAcc(), 3); }
+    while (p.revives > 0) {
+      let ok = false; p.revives--;
+      if (DBG.auto != null) ok = Math.random() < Math.pow(simAcc(), 3);
       else if (window.Quiz && Quiz.reviveGauntlet) {
-        p.revives--;
-        const go = await confirmBox('YOU ARE DOWN!', 'Last Stand: answer 3 questions in a row and you get back up with half your health.', 'Take the Last Stand', 'End the run');
-        if (go) { try { ok = await Quiz.reviveGauntlet(3); } catch (e) {} }
-      }
+        const go = await confirmBox('YOU ARE DOWN!', 'Last Stand: answer 3 questions in a row and you get back up with half your health.' + (p.revives > 0 ? ' You have ' + (p.revives + 1) + ' tries.' : ''), 'Take the Last Stand', 'End the run');
+        if (!go) break;
+        try { ok = await Quiz.reviveGauntlet(3); } catch (e) {}
+      } else break;
       if (ok) {
         p.hp = Math.round(p.maxHp * 0.5); g.revived = true; g.correct += 3; g.streak += 3; if (g.streak > g.bestStreak) g.bestStreak = g.streak;
-        blast(p.x, p.y, 280, 500); fx('revive', p.x, p.y, { r: 280 }); g.ebullets.length = 0; sfx('revive'); banner('BACK IN THE FIGHT', 'Knowing your facts just saved you.', COL.good, '+', 2400); end(); p.iframes = 3; return;
+        const acc = g.dmgAcc, tot = g.dmgTotal; blast(p.x, p.y, 280, 500); g.dmgAcc = acc; g.dmgTotal = tot;
+        fx('revive', p.x, p.y, { r: 280 }); g.ebullets.length = 0; sfx('revive'); banner('BACK IN THE FIGHT', 'Knowing your facts just saved you.', COL.good, '+', 2400); end(); p.iframes = 3; return;
       }
     }
     end(); finish(false);
@@ -666,7 +669,7 @@
     if (DBG.onEnd) { const cb = DBG.onEnd; DBG.onEnd = null; mark('end'); toIdle(); cb({ summary: s, marks: run.marks }); return; }
     setTimeout(() => { if (g !== run) return; toIdle(); if (window.Meta && Meta.onRunEnd) Meta.onRunEnd(s); else fallbackEnd(s); }, won ? 2600 : 1500);
   }
-  function toIdle() { const cam = g.cam; g.state = 'idle'; g.busy = false; g.paused = false; g.enemies = []; g.bosses = []; g.bullets = []; g.ebullets = []; g.zones = []; g.gems = []; g.pickups = []; g.parts = []; g.texts = []; g.arcs = []; g.rings = []; g.fxs = []; g.corpses = []; g.idleAct = g.act; g.zoom = g.zoomT = 1; cam.sx = cam.sy = 0; hudShow(false); seedDeco(); }
+  function toIdle() { const cam = g.cam; g.state = 'idle'; g.busy = false; g.paused = false; g.enemies = []; g.bosses = []; g.bullets = []; g.ebullets = []; g.zones = []; g.gems = []; g.pickups = []; g.parts = []; g.texts = []; g.arcs = []; g.rings = []; g.fxs = []; g.corpses = []; g.idleAct = g.act; g.zoom = g.zoomT = 1; cam.sx = cam.sy = 0; hudShow(false); seedDeco(); wakeOff(); }
   function fallbackEnd(s) { confirmBox(s.won ? 'POWDER KEG DEFUSED!' : 'RUN OVER', 'Act ' + s.act + ' · ' + s.kills + ' defeated · ' + s.correct + ' right answers', 'Play again').then(() => start(g.opts)); }
 
   function pause() {
@@ -674,7 +677,7 @@
     const p = g.player;
     const build = p.weapons.map((w) => ({ art: w.id, icon: WD[w.id].icon, name: WD[w.id].name, lvl: w.lvl })).concat(Object.keys(p.passives).map((id) => ({ art: id, icon: PD[id].icon, name: PD[id].name, lvl: p.passives[id] })));
     pauseM = PK.UI.pauseMenu({ eyebrow: 'Act ' + g.actDef.n + ' · ' + g.actDef.name + ' · ' + U.fmtTime(g.t), tip: U.pick(PK.TIPS), build, muted: !!opt().muted,
-      onResume: resume, onRestart: () => { closeMine(); start(g.opts); }, onQuit: () => { closeMine(); g.paused = false; duck(false); finish(false); },
+      onResume: resume, onRestart: () => { closeMine(); duck(false); try { const c = summary(false).coins; if (c > 0 && window.Meta && Meta.addCoins) { Meta.addCoins(c); if (window.Toast) Toast.show('Kept ' + c + ' coins from that run'); } } catch (e) {} start(g.opts); }, onQuit: () => { closeMine(); g.paused = false; duck(false); finish(false); },
       onMute: () => { const v = !opt().muted; if (window.AudioSys && AudioSys.setMuted) AudioSys.setMuted(v); else { opt().muted = v; Save.commit(); } return v; } });
   }
   function resume() { if (!g.paused) return; closeMine(); g.paused = false; duck(false); last = performance.now(); }
@@ -694,11 +697,14 @@
   }
   function onKeyUp(e) { const k = KEYMAP[e.code]; if (k) keys[k] = false; }
   function pt(e) { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
-  function pDown(e) { if (g.state !== 'play' || g.busy || g.paused || g.joy.on) return; const q = pt(e); g.joy.on = true; g.joy.id = e.pointerId; g.joy.ox = g.joy.x = q[0]; g.joy.oy = g.joy.y = q[1]; try { cv.setPointerCapture(e.pointerId); } catch (_) {} e.preventDefault(); }
+  function pDown(e) { if (g.state !== 'play' || g.busy || g.paused || g.joy.on || (e.pointerType === 'mouse' && e.button !== 0)) return; const q = pt(e); g.joy.on = true; g.joy.id = e.pointerId; g.joy.ox = g.joy.x = q[0]; g.joy.oy = g.joy.y = q[1]; try { cv.setPointerCapture(e.pointerId); } catch (_) {} e.preventDefault(); }
   function pMove(e) { if (!g.joy.on || e.pointerId !== g.joy.id) return; const q = pt(e); g.joy.x = q[0]; g.joy.y = q[1]; const dx = q[0] - g.joy.ox, dy = q[1] - g.joy.oy, d = Math.hypot(dx, dy); if (d > 70) { g.joy.ox += dx / d * (d - 70); g.joy.oy += dy / d * (d - 70); } }
   function pUp(e) { if (e.pointerId === g.joy.id) g.joy.on = false; }
 
   /* ================= public ================= */
+  let wake = null;
+  function wakeOn() { try { if (navigator.wakeLock && !wake) navigator.wakeLock.request('screen').then((w) => { wake = w; w.addEventListener('release', () => { if (wake === w) wake = null; }); }).catch(() => {}); } catch (e) {} }
+  function wakeOff() { try { if (wake) { const w = wake; wake = null; w.release().catch(() => {}); } } catch (e) {} }
   function start(o) {
     o = o || {}; const keep = { W: g.W, H: g.H, dpr: g.dpr, scale: g.scale, vw: g.vw, vh: g.vh }; closeMine();
     g = blank(); Object.assign(g, keep); g.opts = o; g.danger = Math.max(0, o.danger | 0); const d = g.danger;
@@ -709,11 +715,11 @@
     try { if (window.Quiz && Quiz.runReset && !DBG.turbo) Quiz.runReset(); } catch (e) {}
     PK.UI.reset(); hudShow(true); hudAct(); hudWeps(); music(g.actDef.music);
     banner('ACT ' + g.actDef.n + ' · ' + g.actDef.name, g.actDef.def, g.actDef.color, g.actDef.key === 'S' ? '⚡' : g.actDef.key, 3400);
-    R.resize(g);
+    PK.dprCap = 2; PK.lowFx = false; R.resize(g);
     text(0, 64, !U.isTouch() ? 'Move with WASD or the arrow keys' : window.innerWidth > 900 ? 'Drag to move, or use WASD / arrow keys' : 'Drag anywhere to move', '#ffffff', 15, 4.5);
     mark('act' + g.actDef.n);
     last = performance.now();
-    try { navigator.wakeLock && navigator.wakeLock.request('screen').catch(() => {}); } catch (e) {}
+    wakeOn();
   }
   function init() {
     cv = document.getElementById('game-canvas'); modalRoot = document.getElementById('modals');
@@ -721,9 +727,11 @@
     { const st = opt(); if (!st.calm) { st.calm = 1; st.dmgNumbers = false; Save.commit(); } }
     window.addEventListener('resize', () => R.resize(g));
     try { new ResizeObserver(() => { if (cv.clientWidth !== g.W || cv.clientHeight !== g.H) R.resize(g); }).observe(cv); } catch (e) {}
-    window.addEventListener('keydown', onKeyDown); window.addEventListener('keyup', onKeyUp); window.addEventListener('blur', () => { keys = {}; g.joy.on = false; });
+    window.addEventListener('keydown', onKeyDown); window.addEventListener('keyup', onKeyUp); window.addEventListener('blur', () => { keys = {}; g.joy.on = false; setTimeout(() => { if (!document.hasFocus() && g.state === 'play' && !DBG.bot) pause(); }, 200); });
+    window.addEventListener('resize', () => { g.still = false; });
+    cv.addEventListener('contextmenu', (e) => e.preventDefault());
     cv.addEventListener('pointerdown', pDown); cv.addEventListener('pointermove', pMove); cv.addEventListener('pointerup', pUp); cv.addEventListener('pointercancel', pUp);
-    document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); else last = performance.now(); });
+    document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); else { last = performance.now(); if (g.state === 'play') wakeOn(); } });
     last = performance.now(); requestAnimationFrame(frame);
   }
   window.Game = {

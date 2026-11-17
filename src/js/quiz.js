@@ -301,8 +301,13 @@
       if (timed) {
         const total = opts.timeLimit * 1000;
         timerFill.style.width = '100%';
+        /* count only time the page is actually visible: locking the phone must not time the question out */
+        let used = 0, prev = performance.now();
         tick = setInterval(() => {
-          const left = total - (performance.now() - t0);
+          const now = performance.now();
+          if (!document.hidden) used += Math.min(now - prev, 250);
+          prev = now;
+          const left = total - used;
           timerFill.style.width = Math.max(0, (left / total) * 100) + '%';
           const sec = Math.ceil(left / 1000);
           secs.textContent = String(Math.max(0, sec));

@@ -157,7 +157,7 @@
       else B.enemy(c, a, t);
     }
     if (idle) { c.setTransform(g.dpr, 0, 0, g.dpr, 0, 0); vignette(c, g, 0.6); return; }
-    for (let i = 0; i < actors.length; i++) { const e = actors[i]; if (!e.elite) continue; const f = Math.max(0, e.hp / e.maxHp); c.fillStyle = 'rgba(0,0,0,.6)'; c.fillRect(e.x - 18, e.y + e.r + 7, 36, 5); c.fillStyle = COL.brass; c.fillRect(e.x - 18, e.y + e.r + 7, 36 * f, 5); }
+    for (let i = 0; i < actors.length; i++) { const e = actors[i]; if (!e.elite) continue; const f = Math.max(0, Math.min(1, e.hp / e.maxHp)); c.fillStyle = 'rgba(0,0,0,.6)'; c.fillRect(e.x - 18, e.y + e.r + 7, 36, 5); c.fillStyle = COL.brass; c.fillRect(e.x - 18, e.y + e.r + 7, 36 * f, 5); }
 
     /* 9. projectiles + effects */
     if (p.orbPos.length) { m = mod('fx', 'orbs'); if (m) { try { m.orbs(c, p, t, g); } catch (err) { fail('fx', 'orbs', err); B.orbs(c, p); } world(); } else B.orbs(c, p); }
