@@ -78,3 +78,7 @@ curve (`PK.TUNE` and the per-act tables in `game-data.js`) was tuned so that an 
 usually reaches Act 4 but rarely wins, a beginner still clears Act 1, about half the runs are won once half the
 shop is bought and nearly all with the whole shop (then the Danger levels take over) — and so that knowing the
 answers matters more than reflexes: answering 95% right with no upgrades wins as often as dodging like an expert.
+
+Those numbers are for a wide window. On a phone-sized screen the same player does better (about one first run in
+five is won, four in five with half the shop, and three in four first runs when 95% of the answers are right);
+Danger +8 with the whole shop is still only won about one time in five.
