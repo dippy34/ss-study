@@ -12,7 +12,7 @@ import pathlib, sys
 
 ROOT = pathlib.Path(__file__).resolve().parent
 SRC = ROOT / "src"
-CSS = ["base.css", "game.css", "quiz.css", "meta.css", "calm.css"]
+CSS = ["base.css", "game.css", "quiz.css", "meta.css"]
 JS = ["core.js", "save.js", "audio.js", "data.js", "quiz.js", "meta.js", "game-data.js", "game-render.js",
       "art-icons.js", "art-world.js", "art-creatures.js", "art-bosses.js", "art-hero.js", "art-fx.js",
       "game-stage.js", "game-ui.js", "game.js"]

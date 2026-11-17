@@ -10,7 +10,6 @@
   STUDY.questions.forEach((q) => { (byFact[q.fact] || (byFact[q.fact] = [])).push(q); });
 
   const KEYS = { M: { cls: 'm', label: 'MILITARISM' }, A: { cls: 'a', label: 'ALLIANCES' }, I: { cls: 'i', label: 'IMPERIALISM' }, N: { cls: 'n', label: 'NATIONALISM' }, S: { cls: 's', label: 'THE SPARK' }, X: { cls: 'x', label: 'NOT A CAUSE' } };
-  const TOPIC = { vocab: 'Part 1 · Key Vocabulary', sides: 'Part 2 · The Two Sides', compete: 'Part 3 · Competition', spark: 'Part 4 · The Spark' };
   const TOPIC_SHORT = { vocab: 'Vocabulary', sides: 'Two Sides', compete: 'Competition', spark: 'The Spark' };
   const CREDIT = [0, 0.5, 1, 1, 1, 1];   /* right twice in a row = mastered */
 
@@ -95,6 +94,7 @@
     if (q.type === 'mc' && !q.fixed) order = U.shuffle(order);
     return { q, choices: order.map((i) => q.choices[i]), answer: order.indexOf(q.answer) };
   }
+  /* the cause/topic a fact belongs to — only ever shown AFTER he has answered */
   function pillFor(q) { const f = factById[q.fact] || {}; const k = KEYS[q.key] || KEYS.S; return { cls: k.cls, label: f.pill || k.label }; }
 
   function readiness() {
@@ -116,9 +116,63 @@
     return { asked: S.asked, correct: S.correct, accuracy: S.asked ? Math.round((S.correct / S.asked) * 100) : 0, streak: S.streak, bestStreak: S.bestStreak, practiceBest: S.practiceBest, practiceCount: S.practiceCount, bonusPerfect: S.bonusPerfect };
   }
 
+  /* ================= small UI helpers ================= */
+  const reduced = () => { try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { return false; } };
+  /* the drawn icon set is "real" once it knows the cause medals; until then we use our own tiny vector marks (never emoji) */
+  const realIcons = () => { try { return !!(window.PK && PK.icon && PK.ICON_NAMES && PK.ICON_NAMES.indexOf('M') >= 0); } catch (e) { return false; } };
+  const SVGS = {
+    check: '<svg viewBox="0 0 24 24"><path d="M5 12.6l4.6 4.6L19 7.4" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    cross: '<svg viewBox="0 0 24 24"><path d="M6.6 6.6l10.8 10.8M17.4 6.6L6.6 17.4" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round"/></svg>',
+    clock: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M12 7.4V12l3.1 2" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    star: '<svg viewBox="0 0 24 24"><path d="M12 3l2.6 5.8 6.3.7-4.7 4.2 1.4 6.2L12 16.7 6.4 19.9l1.4-6.2L3.1 9.5l6.3-.7z" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>',
+    spark: '<svg viewBox="0 0 24 24"><path d="M13.6 2.5L5.5 13.4h5.2l-1.3 8.1 8.1-10.9h-5.2z" fill="currentColor" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
+  };
+  /* an icon element: the drawn canvas icon when the real set is loaded, else a vector mark; null when neither exists */
+  function ico(name, px) {
+    if (realIcons()) { try { const c = PK.icon(name, px); if (c) { c.classList.add('qz-ico'); return c; } } catch (e) { /* fall through */ } }
+    if (SVGS[name]) return el('span', { class: 'qz-ico qz-svg', 'aria-hidden': 'true', style: { width: px + 'px', height: px + 'px' }, html: SVGS[name] });
+    return null;
+  }
+  const garnish = (name, px) => (realIcons() ? ico(name, px) : null);   /* optional header icons: only with the real set */
+  /* a round cause medal (M A I N, the spark, or "not a cause") */
+  function medal(key, px) {
+    const k = KEYS[key] || KEYS.S;
+    if (realIcons()) { try { const c = PK.icon(key, px); if (c) { c.classList.add('qz-ico'); return c; } } catch (e) { /* fall through */ } }
+    const glyph = key === 'S' ? SVGS.spark : key === 'X' ? SVGS.cross : null;
+    return el('span', { class: 'qz-medal key-' + k.cls, 'aria-hidden': 'true', style: { width: px + 'px', height: px + 'px', fontSize: Math.round(px * 0.52) + 'px' }, html: glyph || undefined, text: glyph ? undefined : key });
+  }
+  /* swap an option's number chip for a tick / cross once it has been judged */
+  function chipMark(btn, ok) {
+    const chip = btn && btn.querySelector('.qz-key');
+    const ic = chip && ico(ok ? 'check' : 'cross', 18);
+    if (!ic) return;
+    chip.textContent = ''; chip.classList.add('ic'); if (ic.tagName === 'CANVAS') chip.classList.add('img'); chip.appendChild(ic);
+  }
+  /* quick fade-out, then run cb (which removes the node) */
+  function leave(node, cb) { if (reduced()) { cb(); return; } node.classList.add('qz-out'); setTimeout(cb, 130); }
+  /* a one-second paper-confetti toss inside a card */
+  function confetti(host) {
+    if (reduced() || !host) return;
+    const box = el('div', { class: 'qz-confetti', 'aria-hidden': 'true' });
+    const cols = ['var(--brass)', 'var(--good)', 'var(--stamp)', 'var(--paper-ink)', 'var(--brass-line)'];
+    for (let i = 0; i < 18; i++) {
+      const bit = el('i');
+      bit.style.left = (4 + Math.random() * 92) + '%'; bit.style.background = cols[i % cols.length]; bit.style.animationDelay = Math.round(Math.random() * 160) + 'ms';
+      bit.style.setProperty('--r', Math.round(200 + Math.random() * 420) + 'deg'); bit.style.setProperty('--x', Math.round(-36 + Math.random() * 72) + 'px');
+      box.appendChild(bit);
+    }
+    host.appendChild(box); setTimeout(() => box.remove(), 1100);
+  }
+  /* FLIP: slide re-ordered siblings to their new place instead of jumping */
+  const tops = (nodes) => nodes.map((n) => n.getBoundingClientRect().top);
+  function slide(nodes, before) {
+    if (reduced()) return;
+    nodes.forEach((n, i) => { const dy = before[i] - n.getBoundingClientRect().top; if (Math.abs(dy) > 1 && n.animate) n.animate([{ transform: 'translateY(' + dy + 'px)' }, { transform: 'none' }], { duration: 180, easing: 'cubic-bezier(.2,.8,.2,1)' }); });
+  }
+
   /* ================= the question modal ================= */
   const HEAD = { levelup: 'LEVEL UP — answer to choose your upgrade', boss: 'BREAK THE SHIELD', revive: 'LAST STAND', practice: 'QUICK QUESTION' };
-  const SUB = { levelup: 'Right: pick 1 of 3 upgrades. Miss: you get a random one.', boss: 'Answer right to shatter the shield.', revive: 'Answer right to get back in the fight.', practice: '' };
+  const HICON = { levelup: 'star', boss: 'shield', revive: 'hp', practice: 'pencil' };
   const YES = ['CORRECT', 'NAILED IT', 'YES', 'SHARP', 'RIGHT'];
   const STREAKS = [3, 5, 10, 15, 20, 25, 30, 40, 50, 75, 100];
 
@@ -129,21 +183,24 @@
       const q = opts.question || pickQuestion(opts);
       const P = present(q);
       const ctx = opts.context || 'levelup';
-      const pill = pillFor(q);
-      const sub = opts.sub != null ? opts.sub : (SUB[ctx] || '');
       const timed = opts.timeLimit > 0;
+      const head = String(opts.header || HEAD[ctx] || 'QUESTION').split(' — ');
+      const step = Array.isArray(opts.step) ? opts.step : null;   /* [i, n]: Last Stand progress */
       const timerFill = el('i');
-      const timer = el('div', { class: 'bar qz-timer', hidden: !timed }, timerFill);
+      const secs = el('span', { class: 'qz-secs num', text: timed ? String(Math.ceil(opts.timeLimit)) : '' });
+      const timer = el('div', { class: 'qz-timer', hidden: !timed }, ico('clock', 18), el('div', { class: 'bar' }, timerFill), secs);
+      const pips = step ? el('div', { class: 'qz-pips', role: 'img', 'aria-label': 'Question ' + step[0] + ' of ' + step[1] },
+        Array.from({ length: step[1] }, (_, k) => el('i', { class: k + 1 < step[0] ? 'done' : k + 1 === step[0] ? 'now' : '' })),
+        el('span', { class: 'qz-pips-n num', text: step[0] + '/' + step[1] })) : null;
       const btns = P.choices.map((c, i) => el('button', { class: 'btn qz-choice', type: 'button' },
         el('span', { class: 'qz-key', text: String(i + 1) }), el('span', { class: 'qz-choice-text', text: c })));
-      const fb = el('div', { class: 'qz-feedback', hidden: true });
-      const modal = el('div', { class: 'modal paper pop-in qz qz-ctx-' + ctx, role: 'dialog', 'aria-modal': 'true', tabindex: '-1' },
+      btns.forEach((bt, i) => bt.style.setProperty('--i', String(i)));
+      const fb = el('div', { class: 'qz-feedback', hidden: true, role: 'status', 'aria-live': 'polite' });
+      const modal = el('div', { class: 'modal paper qz qz-card-in qz-ctx-' + ctx, role: 'dialog', 'aria-modal': 'true', tabindex: '-1' },
         el('div', { class: 'qz-head' },
-          el('div', { class: 'qz-top' },
-            el('span', { class: 'eyebrow', text: TOPIC[q.topic] || 'Study guide' }),
-            el('span', { class: 'pill qz-pill ' + pill.cls, text: pill.label })),
-          el('div', { class: 'display qz-header', text: opts.header || HEAD[ctx] || 'QUESTION' }),
-          sub ? el('div', { class: 'mute qz-sub', text: sub }) : null),
+          garnish(HICON[ctx] || 'star', 22),
+          el('div', { class: 'display qz-header' }, el('span', { text: head[0] }), head.length > 1 ? el('small', { text: head.slice(1).join(' — ') }) : null),
+          pips),
         timer,
         el('div', { class: 'qz-q', text: q.q }),
         el('div', { class: 'qz-choices' + (P.choices.length === 2 ? ' two' : '') }, btns),
@@ -161,33 +218,49 @@
         if (i >= 0 && performance.now() < unlockAt) return;
         answered = true;
         if (tick) { clearInterval(tick); tick = null; }
-        const ok = i === P.answer;
+        const ok = i === P.answer, before = S.streak;
         btns.forEach((b, j) => { b.disabled = true; b.classList.add(j === P.answer ? 'is-right' : j === i ? 'is-wrong' : 'is-dim'); });
+        chipMark(btns[P.answer], true); if (!ok && i >= 0) chipMark(btns[i], false);
         record(q.fact, ok, { streak: true });
         sfx(ok ? 'correct' : 'wrong');
-        if (ok && STREAKS.indexOf(S.streak) >= 0) setTimeout(() => sfx('streak'), 200);
-        modal.classList.add(ok ? 'qz-ok' : 'qz-no');
+        const mile = ok && STREAKS.indexOf(S.streak) >= 0;
+        if (mile) setTimeout(() => sfx('streak'), 200);
+        modal.classList.remove('qz-card-in'); modal.classList.add(ok ? 'qz-ok' : 'qz-no');
+        timer.classList.add('done');
+        if (pips) { const now = pips.querySelector('.now'); if (now) now.className = ok ? 'done' : 'fail'; }
+
+        let streakEl = '';
+        if (S.streak > 1) {
+          streakEl = el('span', { class: 'qz-streak' + (mile ? ' hot' : '') }, mile ? ico('star', 16) : null, el('span', { text: 'Streak' }), el('b', { class: 'num', text: '×' + S.streak }));
+          if (mile && !reduced()) for (let a = 0; a < 8; a++) { const sp = el('i', { class: 'qz-spark' }); sp.style.setProperty('--a', (a * 45 + 12) + 'deg'); streakEl.appendChild(sp); }
+        } else if (!ok && before > 1) streakEl = el('span', { class: 'qz-streak lost', text: 'Streak reset' });
+        const pill = pillFor(q);
+        const medals = q.fact === 'cause:main' ? ['M', 'A', 'I', 'N'].map((k) => medal(k, 22)) : medal(q.key, 22);
         const cont = el('button', { class: 'btn primary big qz-continue', type: 'button', text: 'Continue' });
+        const note = el('div', { class: 'qz-note key-' + pill.cls }, el('div', { class: 'qz-note-head' }, medals, el('span', { text: pill.label })), el('p', { class: 'qz-explain', text: q.explain || '' }));
         fb.append(
           el('div', { class: 'qz-verdict' },
-            el('span', { class: 'stamp ' + (ok ? 'good' : 'bad'), text: ok ? U.pick(YES) : (i < 0 ? 'TIME UP' : 'NOT QUITE') }),
-            el('span', { class: 'qz-streak num', text: S.streak > 1 ? 'Streak ×' + S.streak : (ok ? '' : 'Streak reset') })),
-          ok ? '' : el('div', { class: 'qz-answer' }, el('span', { class: 'eyebrow', text: 'Answer' }), el('b', { text: P.choices[P.answer] })),
-          el('div', { class: 'qz-explain', text: q.explain || '' }),
-          cont);
+            el('span', { class: 'stamp qz-stamp ' + (ok ? 'good' : 'bad'), text: ok ? U.pick(YES) : (i < 0 ? 'TIME UP' : 'NOT QUITE') }), streakEl),
+          note, cont);
         fb.hidden = false;
         result = { correct: ok, questionId: q.id, factId: q.fact, timeMs: Math.round(performance.now() - t0), streak: S.streak };
         setTimeout(() => { canGo = true; }, ok ? 220 : 450);
         cont.addEventListener('click', () => { if (canGo) finish(); });
-        try { cont.focus({ preventScroll: true }); cont.scrollIntoView({ block: 'nearest' }); } catch (e) { /* older browsers */ }
+        try {
+          cont.focus({ preventScroll: true }); cont.scrollIntoView({ block: 'nearest' });
+          /* after a miss the right choice is lit green in the list; if the card is so tall that it scrolled out of view, repeat it next to the note */
+          if (!ok && btns[P.answer].getBoundingClientRect().top < veil.getBoundingClientRect().top + 4) {
+            fb.insertBefore(el('div', { class: 'qz-answer' }, ico('check', 20), el('div', { class: 'qz-answer-text' }, el('span', { class: 'eyebrow', text: 'Answer' }), el('b', { text: P.choices[P.answer] }))), note);
+            cont.scrollIntoView({ block: 'nearest' });
+          }
+        } catch (e) { /* older browsers */ }
       }
       function finish() {
         if (done) return; done = true;
         window.removeEventListener('keydown', onKey, true);
         if (tick) clearInterval(tick);
-        veil.remove(); openCount--;
         sfx('click');
-        resolve(result);
+        leave(veil, () => { veil.remove(); openCount--; resolve(result); });
       }
       function onKey(e) {
         const k = e.key;
@@ -212,6 +285,7 @@
           const left = total - (performance.now() - t0);
           timerFill.style.width = Math.max(0, (left / total) * 100) + '%';
           const sec = Math.ceil(left / 1000);
+          secs.textContent = String(Math.max(0, sec));
           if (sec <= 5 && sec > 0 && sec < lastTick) { lastTick = sec; sfx('tick'); timer.classList.add('hot'); }
           if (left <= 0) choose(-1);
         }, 100);
@@ -222,7 +296,7 @@
   async function reviveGauntlet(n) {
     n = n || 3;
     for (let i = 1; i <= n; i++) {
-      const r = await ask({ context: 'revive', header: 'LAST STAND ' + i + '/' + n, sub: i === 1 ? 'Get ' + n + ' right in a row to get back in the fight.' : 'Keep going — ' + (n - i + 1) + ' to go.' });
+      const r = await ask({ context: 'revive', header: 'LAST STAND', step: [i, n] });
       if (!r || !r.correct) return false;
     }
     return true;
@@ -230,20 +304,26 @@
 
   /* ================= bonus rounds ================= */
   function frame(title, sub) {
-    const prog = el('span', { class: 'bz-prog num' });
+    const pips = el('div', { class: 'bz-pips', role: 'img', 'aria-label': 'Progress' });
     const body = el('div', { class: 'bz-body' });
-    const modal = el('div', { class: 'modal paper pop-in bz', role: 'dialog', 'aria-modal': 'true' },
+    const modal = el('div', { class: 'modal paper bz qz-card-in', role: 'dialog', 'aria-modal': 'true' },
       el('div', { class: 'bz-head' },
-        el('div', { class: 'bz-top' }, el('span', { class: 'eyebrow', text: 'Bonus round' }), prog),
+        el('div', { class: 'bz-top' }, el('span', { class: 'eyebrow bz-eyebrow' }, garnish('chest', 16), 'Bonus round'), pips),
         el('h2', { class: 'display bz-title', text: title }),
-        el('div', { class: 'mute bz-sub', text: sub })),
+        el('div', { class: 'bz-sub', text: sub })),
       body);
     const veil = el('div', { class: 'veil qz-veil' }, modal);
     const esc = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); } };
     window.addEventListener('keydown', esc, true);
     root().appendChild(veil); openCount++;
     sfx('chest');
-    return { veil, modal, body, prog, close() { window.removeEventListener('keydown', esc, true); veil.remove(); openCount--; } };
+    let dots = [];
+    return { veil, modal, body,
+      /* progress strip: one pip per card/step. state: '' | 'cur' | 'on' | 'ok' | 'no' */
+      steps(n) { pips.innerHTML = ''; dots = []; for (let i = 0; i < n; i++) { const d = el('i'); dots.push(d); pips.appendChild(d); } },
+      step(i, state, label) { if (dots[i]) dots[i].className = state || ''; if (label) pips.setAttribute('aria-label', label); },
+      clearSteps() { pips.innerHTML = ''; dots = []; },
+      close() { return new Promise((res) => { window.removeEventListener('keydown', esc, true); leave(veil, () => { veil.remove(); openCount--; res(); }); }); } };
   }
   /* wait for one of the buttons (click or number key) */
   function pickOne(btns, lockMs) {
@@ -271,25 +351,30 @@
     const cardBox = el('div', { class: 'bz-cardbox' });
     const optBox = el('div', { class: 'bz-opts' });
     fr.body.append(cardBox, optBox);
+    fr.steps(items.length);
     for (let i = 0; i < items.length; i++) {
       const it = items[i];
-      fr.prog.textContent = (i + 1) + ' / ' + items.length;
+      fr.step(i, 'cur', 'Card ' + (i + 1) + ' of ' + items.length);
       const card = cfg.card(it, i);
+      card.classList.add('bz-in');
       cardBox.innerHTML = ''; cardBox.appendChild(card);
       const options = it.options || cfg.options;
       optBox.className = 'bz-opts n' + options.length + (cfg.optClass ? ' ' + cfg.optClass : '');
       optBox.innerHTML = '';
-      const btns = options.map((o, k) => el('button', { class: 'btn bz-opt ' + (o.cls || ''), type: 'button' },
-        el('span', { class: 'qz-key', text: String(k + 1) }), el('span', { class: 'qz-choice-text', text: o.text })));
-      btns.forEach((b) => optBox.appendChild(b));
+      const btns = options.map((o, k) => { const bt = el('button', { class: 'btn bz-opt ' + (o.cls || ''), type: 'button' },
+        el('span', { class: 'qz-key', text: String(k + 1) }), el('span', { class: 'qz-choice-text', text: o.text })); bt.style.setProperty('--i', String(k)); return bt; });
+      btns.forEach((bt) => optBox.appendChild(bt));
       const k = await pickOne(btns);
       const ok = k === it.answer;
       T.add(it.fact, ok);
-      btns.forEach((b, j) => { b.disabled = true; b.classList.add(j === it.answer ? 'is-right' : j === k ? 'is-wrong' : 'is-dim'); });
-      card.classList.add(ok ? 'is-right' : 'is-wrong');
+      btns.forEach((bt, j) => { bt.disabled = true; bt.classList.add(j === it.answer ? 'is-right' : j === k ? 'is-wrong' : 'is-dim'); });
+      if (options[it.answer] && options[it.answer].medal) btns[it.answer].insertBefore(medal(options[it.answer].medal, 22), btns[it.answer].firstChild);   /* the cause medal shows only now */
+      chipMark(btns[it.answer], true); if (!ok) chipMark(btns[k], false);
+      card.classList.remove('bz-in'); card.classList.add(ok ? 'is-right' : 'is-wrong');
+      fr.step(i, ok ? 'ok' : 'no');
       if (ok) { correct++; sfx('correct', { pitch: 1 + i * 0.05 }); } else { sfx('wrong'); if (it.fix) fixes.push(it.fix); }
       if (cfg.after) cfg.after(it, ok, card, i);
-      if (!ok && it.fix) card.appendChild(el('div', { class: 'bz-fix', html: it.fix }));
+      if (!ok && it.fix) card.appendChild(el('div', { class: 'bz-fix', html: it.fixShort || it.fix }));
       else if (it.note) card.appendChild(el('div', { class: 'bz-note', text: it.note }));
       await sleep(ok ? (it.note ? 1000 : 430) : 1700);
     }
@@ -320,7 +405,7 @@
       title: 'M.A.I.N. OR NOT?', sub: 'Is it one of the causes of World War I?',
       async run(fr, T) {
         const items = U.shuffle(STUDY.terms).map((t) => ({ t, answer: t.cause ? 0 : 1, fact: t.cause ? 'cause:main' : 'cause:' + t.id,
-          fix: b(t.name) + (t.cause ? ' IS a cause — the ' + t.letter + ' in M.A.I.N.' : ' is NOT a cause. ' + U.esc(t.note.replace(/^NOT a cause of WWI: /, ''))),
+          fix: b(t.name) + (t.cause ? ' IS a cause — the ' + t.letter + ' in M.A.I.N.' : ' is NOT a cause. ' + U.esc(t.note.replace(/^NOT a cause of WWI: /, '').replace(/^./, (ch) => ch.toUpperCase()))),
           note: t.cause ? 'Yes — the ' + t.letter + ' in M.A.I.N.' : t.note.replace(/^NOT a cause of WWI: /, 'Right — ') }));
         const r = await classify(fr, T, items, {
           options: [{ text: 'CAUSE OF WWI', cls: 'opt-yes' }, { text: 'NOT A CAUSE', cls: 'opt-no' }],
@@ -337,7 +422,7 @@
         const vars = U.shuffle(STUDY.longOrSpark.filter((x) => x.variant));
         const vS = vars.filter((x) => x.ans === 'S').slice(0, 1), vL = vars.filter((x) => x.ans === 'L').slice(0, 1);
         const items = U.shuffle(base.concat(vS, vL)).map((x) => ({ x, answer: x.ans === 'L' ? 0 : 1, fact: x.fact,
-          fix: b(x.text) + ' → ' + (x.ans === 'L' ? 'Long-term cause' : 'Spark') }));
+          fix: b(x.text) + ' → ' + (x.ans === 'L' ? 'Long-term cause' : 'Spark'), fixShort: x.ans === 'L' ? 'That is a ' + b('long-term cause') + ': it built up for years.' : 'That is the ' + b('spark') + ': the one event that lit the fuse.' }));
         const r = await classify(fr, T, items, {
           options: [{ text: 'L · LONG-TERM CAUSE', cls: 'opt-l' }, { text: 'S · SPARK', cls: 'opt-s' }],
           card: (it) => bigCard('Long-term cause or spark?', it.x.text),
@@ -349,30 +434,32 @@
     clues: {
       title: 'CLUE MATCH', sub: 'Match each clue phrase to its term.',
       async run(fr, T) {
-        const options = STUDY.terms.map((t) => ({ text: t.name, cls: 'key-' + KEYS[t.key].cls }));
-        const items = U.shuffle(STUDY.terms.filter((t) => t.clue)).map((t) => ({ t, answer: STUDY.terms.indexOf(t), fact: 'clue:' + t.id, fix: '"' + U.esc(t.clue) + '" → ' + b(t.name) }));
-        return classify(fr, T, items, { options, optClass: 'chips', card: (it) => bigCard('Clue words', '"' + it.t.clue + '"') });
+        /* chips stay plain until he answers; the right one then gets its cause medal */
+        const options = STUDY.terms.map((t) => ({ text: t.name, medal: t.key }));
+        const items = U.shuffle(STUDY.terms.filter((t) => t.clue)).map((t) => ({ t, answer: STUDY.terms.indexOf(t), fact: 'clue:' + t.id, fix: '"' + U.esc(t.clue) + '" → ' + b(t.name), fixShort: 'That clue means ' + b(t.name) }));
+        return classify(fr, T, items, { options, optClass: 'chips', card: (it) => bigCard('Clue words', '"' + it.t.clue + '"', 'quote') });
       },
     },
     story: {
       title: 'FILL THE TELEGRAM', sub: 'Pick the word that fills the glowing blank.',
       async run(fr, T) {
         const st0 = STUDY.story; const filled = [];
-        const items = st0.blanks.map((bl) => { const opts = U.shuffle(bl.options); return { bl, options: opts.map((t) => ({ text: t })), answer: opts.indexOf(bl.answer), fact: bl.fact, fix: 'Blank: ' + b(bl.answer) }; });
-        const render = (cur) => {
+        const items = st0.blanks.map((bl) => { const opts = U.shuffle(bl.options); return { bl, options: opts.map((t) => ({ text: t })), answer: opts.indexOf(bl.answer), fact: bl.fact, fix: 'The word was ' + b(bl.answer) }; });
+        const render = (cur, fresh) => {
           const p = el('p', { class: 'bz-story' });
           st0.parts.forEach((part, i) => {
             p.appendChild(document.createTextNode(part));
             if (i < st0.blanks.length) {
               const f = filled[i];
-              p.appendChild(el('span', { class: 'bz-blank' + (f ? (f.ok ? ' ok' : ' no') : '') + (i === cur && !f ? ' cur' : ''), text: f ? st0.blanks[i].answer : '______' }));
+              p.appendChild(el('span', { class: 'bz-blank' + (f ? (f.ok ? ' ok' : ' no') : '') + (i === cur && !f ? ' cur' : '') + (i === fresh ? ' snap' : ''), text: f ? st0.blanks[i].answer : '' }));
             }
           });
-          return el('div', { class: 'bz-card story' }, p);
+          return el('div', { class: 'bz-card story' }, el('div', { class: 'eyebrow bz-wire', text: 'Sarajevo · June 28' }), p);
         };
         const r = await classify(fr, T, items, {
-          card: (it, i) => render(i),
-          after: (it, ok, card, i) => { filled[i] = { ok }; const fresh = render(-1); card.innerHTML = ''; while (fresh.firstChild) card.appendChild(fresh.firstChild); },
+          optClass: 'words',
+          card: (it, i) => render(i, -1),
+          after: (it, ok, card, i) => { filled[i] = { ok }; const fresh = render(-1, i); card.innerHTML = ''; while (fresh.firstChild) card.appendChild(fresh.firstChild); },
         });
         r.fixes = r.fixes.length ? [U.esc(STUDY.lines.story || '')] : [];
         return r;
@@ -386,17 +473,23 @@
           const first = [true, true, true, true, true];
           let next = 0; const t0 = performance.now();
           const list = el('div', { class: 'bz-chain' });
-          fr.prog.textContent = '0 / 5';
+          const rows = [];
+          fr.steps(5); fr.step(0, 'cur', 'Event 1 of 5');
           order.forEach((idx) => {
-            const num = el('span', { class: 'bz-num num', text: '?' });
+            const num = el('span', { class: 'bz-num num' });
             const btn = el('button', { class: 'btn bz-chain-item', type: 'button', style: { order: '10' } }, num, el('span', { class: 'qz-choice-text', text: STUDY.chain[idx] }));
+            rows.push(btn);
             btn.addEventListener('click', () => {
               if (btn.disabled || performance.now() - t0 < 250) return;
               if (idx === next) {
-                btn.disabled = true; btn.classList.add('is-right'); btn.style.order = String(next); num.textContent = String(next + 1);
+                const was = tops(rows);
+                btn.disabled = true; btn.classList.add('is-right'); btn.style.order = String(next); num.textContent = String(next + 1); num.classList.add('stamped');
+                slide(rows, was);
                 T.add('chain:' + (next + 1), first[next]);
                 sfx('correct', { pitch: 1 + next * 0.1 });
-                next++; fr.prog.textContent = next + ' / 5';
+                fr.step(next, first[next] ? 'ok' : 'no');
+                next++;
+                if (next < 5) fr.step(next, 'cur', 'Event ' + (next + 1) + ' of 5');
                 if (next === 5) {
                   const correct = first.filter(Boolean).length;
                   T.add('chain:order', correct === 5);
@@ -421,22 +514,25 @@
           const picked = new Set(); const t0 = performance.now(); let locked = false;
           const grid = el('div', { class: 'bz-grid' });
           const check = el('button', { class: 'btn primary big bz-check', type: 'button', disabled: true, text: 'Pick 4' });
-          const tiles = pool.map((c) => {
+          const pips = () => { for (let i = 0; i < 4; i++) fr.step(i, i < picked.size ? 'on' : '', picked.size + ' of 4 picked'); };
+          const tiles = pool.map((c, i) => {
             const t = el('button', { class: 'btn bz-tile', type: 'button', 'aria-pressed': 'false', text: c });
+            t.style.setProperty('--i', String(i));
             t.addEventListener('click', () => {
               if (locked || performance.now() - t0 < 250) return;
               if (picked.has(c)) picked.delete(c); else { if (picked.size >= 4) { check.classList.remove('shake'); void check.offsetWidth; check.classList.add('shake'); return; } picked.add(c); }
               t.classList.toggle('on', picked.has(c)); t.setAttribute('aria-pressed', picked.has(c) ? 'true' : 'false');
               sfx('select');
               check.disabled = picked.size !== 4; check.textContent = picked.size === 4 ? 'Check' : 'Pick ' + (4 - picked.size) + ' more';
-              fr.prog.textContent = picked.size + ' / 4';
+              pips();
             });
             grid.appendChild(t); return t;
           });
-          fr.prog.textContent = '0 / 4';
+          fr.steps(4); pips();
           check.addEventListener('click', () => {
             if (locked || picked.size !== 4) return; locked = true; check.disabled = true;
             let correct = 0; const fixes = [];
+            grid.classList.add('judged');
             pool.forEach((c, i) => {
               const isC = STUDY.central.indexOf(c) >= 0, on = picked.has(c);
               tiles[i].disabled = true;
@@ -445,6 +541,7 @@
               else if (!isC && on) { tiles[i].classList.add('is-wrong'); T.add('side:' + c, false); fixes.push(b(c) + (c === 'United States' ? ' was neutral in 1914.' : ' was an Allied Power.')); }
               else tiles[i].classList.add('is-dim');
             });
+            for (let i = 0; i < 4; i++) fr.step(i, i < correct ? 'ok' : 'no');
             T.add('sides:central4', correct === 4);
             sfx(correct === 4 ? 'correct' : 'wrong');
             setTimeout(() => res({ correct, total: 4, fixes, note: '<b>B</b>ears <b>A</b>te <b>G</b>reen <b>O</b>ranges = Bulgaria, Austria-Hungary, Germany, Ottoman Empire.' }), correct === 4 ? 800 : 1700);
@@ -470,26 +567,28 @@
       const T = tally();
       r = await g.run(fr, T);
       T.flush();
-      const perfect = r.correct === r.total;
+      const perfect = r.correct === r.total, fair = r.correct * 2 >= r.total;
       if (perfect) { S.bonusPerfect++; SaveX.commit(); }
       sfx(perfect ? 'streak' : 'card');
-      fr.prog.textContent = '';
+      fr.clearSteps();
       fr.body.innerHTML = '';
       const cont = el('button', { class: 'btn primary big', type: 'button', text: 'Continue' });
-      fr.body.appendChild(el('div', { class: 'bz-result pop-in' },
-        el('span', { class: 'stamp ' + (perfect ? 'good' : r.correct * 2 >= r.total ? '' : 'bad'), text: perfect ? 'PERFECT' : r.correct * 2 >= r.total ? 'NOT BAD' : 'STUDY THIS' }),
+      fr.body.appendChild(el('div', { class: 'bz-result' + (perfect ? ' perfect' : '') },
+        el('span', { class: 'stamp qz-stamp ' + (perfect ? 'good' : fair ? 'mid' : 'bad'), text: perfect ? 'PERFECT' : fair ? 'NOT BAD' : 'STUDY THIS' }),
         el('div', { class: 'display bz-score num', text: r.correct + ' / ' + r.total }),
-        r.fixes && r.fixes.length ? el('ul', { class: 'bz-fixes' }, r.fixes.map((h) => el('li', { html: h }))) : '',
+        r.fixes && r.fixes.length ? el('div', { class: 'bz-fixbox' }, el('div', { class: 'eyebrow', text: 'Get these next time' }),
+          el('ul', { class: 'bz-fixes' }, r.fixes.map((h) => el('li', {}, ico('check', 16), el('span', { html: h }))))) : '',
         r.note ? el('div', { class: 'bz-note', html: r.note }) : '',
         cont));
+      if (perfect) confetti(fr.modal);
       await waitContinue(cont, 450);
     } catch (e) { if (window.console) console.error('bonus round failed', e); }
-    fr.close();
+    await fr.close();
     return { kind, correct: r.correct, total: r.total, score: r.total ? r.correct / r.total : 0, perfect: r.correct === r.total };
   }
 
   /* ================= practice test ================= */
-  const norm = (s) => String(s == null ? '' : s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/&/g, 'and').replace(/[^a-z0-9]/g, '').replace(/^the(?=.{3})/, '');
+  const norm = (s) => String(s == null ? '' : s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/&/g, 'and').replace(/[^a-z0-9]/g, '').replace(/^the(?=.{3})/, '');
   function lev(a, c) {
     const m = a.length, n = c.length; if (!m) return n; if (!n) return m;
     let prev = []; for (let j = 0; j <= n; j++) prev[j] = j;
@@ -555,34 +654,49 @@
     st();
     return new Promise((resolve) => {
       const wrap = el('div', { class: 'wrap' });
-      const screen = el('div', { class: 'screen pt' }, wrap);
+      const screen = el('div', { class: 'screen pt qz-screen-in' }, wrap);
       root().appendChild(screen); openCount++;
-      let keyFn = null, last = { score: 0, total: 0, pct: 0 };
+      let keyFn = null, last = { score: 0, total: 0, pct: 0 }, closed = false;
       const setKey = (fn) => { if (keyFn) window.removeEventListener('keydown', keyFn, true); keyFn = fn; if (fn) window.addEventListener('keydown', fn, true); };
-      const close = () => { setKey(null); screen.remove(); openCount--; sfx('click'); resolve(last); };
+      const close = () => { if (closed) return; closed = true; setKey(null); sfx('click'); leave(screen, () => { screen.remove(); openCount--; resolve(last); }); };
 
       function start() {
-        const items = buildPractice(); const answers = []; let i = 0;
+        const items = buildPractice(); const answers = []; let i = 0, armed = false, armT = 0;
+        const count = el('div', { class: 'display pt-count num' });
+        const fill = el('i');
+        const quit = el('button', { class: 'btn small ghost pt-quit', type: 'button', text: 'Quit' });
+        quit.addEventListener('click', () => {
+          if (armed) return close();
+          armed = true; quit.textContent = 'Tap again to quit'; quit.classList.add('danger');
+          clearTimeout(armT); armT = setTimeout(() => { armed = false; quit.textContent = 'Quit'; quit.classList.remove('danger'); }, 2500);
+        });
+        const slot = el('div', { class: 'pt-slot' });
+        wrap.innerHTML = '';
+        wrap.append(
+          el('div', { class: 'pt-top' }, el('div', { class: 'grow' }, el('div', { class: 'eyebrow pt-eyebrow' }, garnish('pencil', 16), 'Practice test · no hints'), count), quit),
+          el('div', { class: 'bar pt-bar' }, fill),
+          slot);
         const next = () => { i++; if (i < items.length) show(); else results(items, answers); };
         function show() {
-          const it = items[i]; let armed = false, moved = false;
-          const quit = el('button', { class: 'btn small ghost pt-quit', type: 'button', text: 'Quit' });
-          quit.addEventListener('click', () => {
-            if (armed) return close();
-            armed = true; quit.textContent = 'Tap again to quit'; quit.classList.add('danger');
-            setTimeout(() => { armed = false; quit.textContent = 'Quit'; quit.classList.remove('danger'); }, 2500);
-          });
-          const card = el('div', { class: 'paper pt-card pop-in' });
+          const it = items[i]; let moved = false;
+          count.textContent = 'Question ' + (i + 1) + ' of ' + items.length;
+          fill.style.width = ((i / items.length) * 100) + '%';
+          const card = el('div', { class: 'paper pt-card pt-in' });
           const go = () => { if (moved) return; moved = true; sfx('click'); next(); };
           if (it.typed) {
             const t = it.typed;
-            const inputs = [];
-            for (let k = 0; k < t.slots; k++) inputs.push(el('input', { class: 'pt-input', id: 'pt-input-' + k, type: 'text', autocomplete: 'off', autocapitalize: 'words', spellcheck: 'false', 'aria-label': 'Answer ' + (k + 1), placeholder: t.slots > 1 ? (t.labels ? t.labels[k] + '…' : (k + 1) + '.') : 'Type your answer' }));
+            const inputs = [], fields = [];
+            for (let k = 0; k < t.slots; k++) {
+              const id = 'pt-' + t.id + '-' + k;
+              const inp = el('input', { class: 'pt-input', id, name: id, type: 'text', autocomplete: 'off', autocapitalize: 'words', autocorrect: 'off', spellcheck: 'false', enterkeyhint: k < t.slots - 1 ? 'next' : 'done', 'aria-label': 'Answer ' + (k + 1), placeholder: t.slots > 1 ? '' : 'Type your answer' });
+              inputs.push(inp);
+              fields.push(el('label', { class: 'pt-field', for: id }, t.slots > 1 ? el('span', { class: 'qz-key', text: t.labels ? t.labels[k] : String(k + 1) }) : null, inp));
+            }
             const nextBtn = el('button', { class: 'btn primary big', type: 'button', text: i === items.length - 1 ? 'Finish' : 'Next' });
             const save = () => { answers[i] = inputs.map((x) => x.value); };
             nextBtn.addEventListener('click', () => { save(); go(); });
-            card.append(el('div', { class: 'eyebrow', text: 'Type it · ' + (TOPIC[t.topic] || '') }), el('div', { class: 'qz-q', text: t.q }),
-              el('div', { class: 'pt-inputs' + (t.slots > 1 ? ' multi' : '') }, inputs), el('div', { class: 'mute pt-hint', text: 'Spelling does not have to be perfect.' }), nextBtn);
+            card.append(el('div', { class: 'eyebrow', text: 'Type your answer' }), el('div', { class: 'qz-q', text: t.q }),
+              el('div', { class: 'pt-inputs' + (t.slots > 1 ? ' multi' : '') }, fields), el('div', { class: 'mute pt-hint', text: 'Spelling does not have to be perfect.' }), nextBtn);
             setKey((e) => {
               if (e.key !== 'Enter') return;
               e.preventDefault(); e.stopPropagation();
@@ -593,16 +707,13 @@
           } else {
             const P = it.P;
             const btns = P.choices.map((c, k) => el('button', { class: 'btn qz-choice', type: 'button' }, el('span', { class: 'qz-key', text: String(k + 1) }), el('span', { class: 'qz-choice-text', text: c })));
+            btns.forEach((bt, k) => bt.style.setProperty('--i', String(k)));
             const pick = (k) => { if (moved || answers[i] != null) return; answers[i] = k; btns[k].classList.add('is-picked'); btns.forEach((x) => { x.disabled = true; }); setTimeout(go, 200); };
             btns.forEach((x, k) => x.addEventListener('click', () => pick(k)));
-            card.append(el('div', { class: 'eyebrow', text: TOPIC[P.q.topic] || '' }), el('div', { class: 'qz-q', text: P.q.q }), el('div', { class: 'qz-choices' + (P.choices.length === 2 ? ' two' : '') }, btns));
+            card.append(el('div', { class: 'qz-q', text: P.q.q }), el('div', { class: 'qz-choices' + (P.choices.length === 2 ? ' two' : '') }, btns));
             setKey((e) => { const n = parseInt(e.key, 10); if (n >= 1 && n <= btns.length) { e.preventDefault(); e.stopPropagation(); if (!e.repeat) pick(n - 1); } });
           }
-          wrap.innerHTML = '';
-          wrap.append(
-            el('div', { class: 'row pt-top' }, el('div', { class: 'grow' }, el('div', { class: 'eyebrow', text: 'Practice test · no hints until the end' }), el('div', { class: 'display pt-count num', text: 'Question ' + (i + 1) + ' of ' + items.length })), quit),
-            el('div', { class: 'bar pt-bar' }, el('i', { style: { width: ((i / items.length) * 100) + '%' } })),
-            card);
+          slot.innerHTML = ''; slot.appendChild(card);
           screen.scrollTop = 0;
         }
         show();
@@ -633,26 +744,34 @@
         const doneBtn = el('button', { class: 'btn primary big', type: 'button', text: 'Done' });
         again.addEventListener('click', () => { sfx('click'); start(); });
         doneBtn.addEventListener('click', close);
-        wrap.innerHTML = '';
-        wrap.append(
-          el('div', { class: 'paper pt-card pt-results pop-in' },
-            el('div', { class: 'eyebrow', text: 'Practice test results' }),
-            el('div', { class: 'pt-scoreline' },
-              el('div', { class: 'display pt-score num', text: score + ' / ' + total }),
-              el('span', { class: 'stamp ' + (pct >= 80 ? 'good' : pct >= 60 ? '' : 'bad'), text: grade === 'NOT YET' ? grade : 'GRADE ' + grade }),
-              el('div', { class: 'pt-pct num', text: pct + '%' })),
-            el('div', { class: 'pt-msg', text: msg }),
-            el('div', { class: 'pt-topics' }, Object.keys(TOPIC_SHORT).filter((k) => by[k]).map((k) => el('div', { class: 'pt-topic' },
+        const fills = [];
+        const sheet = el('div', { class: 'paper pt-card pt-results pt-in' },
+          el('div', { class: 'eyebrow', text: 'Practice test results' }),
+          el('div', { class: 'pt-scoreline' },
+            el('div', { class: 'stamp qz-stamp pt-grade ' + (pct >= 80 ? 'good' : pct >= 60 ? 'mid' : 'bad') + (grade === 'NOT YET' ? ' long' : '') },
+              grade === 'NOT YET' ? el('b', { text: 'NOT YET' }) : [el('small', { text: 'GRADE' }), el('b', { text: grade })]),
+            el('div', { class: 'pt-scorebox' }, el('div', { class: 'display pt-score num', text: score + ' / ' + total }), el('div', { class: 'pt-pct num', text: pct + '%' }))),
+          el('div', { class: 'pt-msg', text: msg }),
+          el('div', { class: 'pt-topics' }, Object.keys(TOPIC_SHORT).filter((k) => by[k]).map((k) => {
+            const f = el('i'); fills.push([f, (by[k][0] / by[k][1]) * 100]);
+            return el('div', { class: 'pt-topic' },
               el('div', { class: 'pt-topic-top' }, el('span', { text: TOPIC_SHORT[k] }), el('span', { class: 'num', text: by[k][0] + ' / ' + by[k][1] })),
-              el('div', { class: 'bar' }, el('i', { style: { width: ((by[k][0] / by[k][1]) * 100) + '%' } }))))),
-            el('div', { class: 'row pt-actions' }, again, doneBtn)),
+              el('div', { class: 'bar' }, f));
+          })),
+          el('div', { class: 'row pt-actions' }, again, doneBtn));
+        wrap.innerHTML = '';
+        wrap.append(sheet,
           misses.length ? el('div', { class: 'paper pt-card pt-misses' },
             el('div', { class: 'eyebrow', text: 'Review these ' + misses.length + ' — they come back in the game' }),
             misses.map((m) => el('div', { class: 'pt-miss' },
               el('div', { class: 'pt-miss-q', text: m.qtext }),
-              el('div', { class: 'pt-miss-you' }, el('span', { class: 'eyebrow', text: 'You said' }), ' ', el('span', { text: m.yours })),
-              el('div', { class: 'pt-miss-right' }, el('span', { class: 'eyebrow', text: 'Answer' }), ' ', el('b', { text: m.right })),
-              el('div', { class: 'pt-miss-why', text: m.explain || '' })))) : el('div', { class: 'paper pt-card pt-misses' }, el('div', { class: 'qz-q', text: 'Nothing to review. Every answer was right.' })));
+              el('div', { class: 'pt-miss-you' }, ico('cross', 18), el('div', {}, el('span', { class: 'eyebrow', text: 'You said' }), el('span', { text: m.yours }))),
+              el('div', { class: 'pt-miss-right' }, ico('check', 18), el('div', {}, el('span', { class: 'eyebrow', text: 'Answer' }), el('b', { text: m.right }))),
+              m.explain ? el('div', { class: 'pt-miss-why', text: m.explain }) : null)))
+            : el('div', { class: 'paper pt-card pt-misses' }, el('div', { class: 'qz-q', text: 'Nothing to review. Every answer was right.' })));
+        /* bars grow from zero once the sheet is on screen */
+        setTimeout(() => { fills.forEach((x) => { x[0].style.width = x[1] + '%'; }); }, reduced() ? 0 : 120);
+        if (pct === 100) confetti(sheet);
         screen.scrollTop = 0;
       }
       start();
@@ -666,72 +785,88 @@
     return new Promise((resolve) => {
       const e = U.esc;
       const dot = (id) => { const x = S.mastery[id]; const bx = x ? x.b : 0; return '<i class="cx-dot b' + (bx >= 2 ? 3 : bx) + (x ? '' : ' new') + '" title="' + (bx >= 2 ? 'Mastered' : x ? 'Learning' : 'Not asked yet') + '"></i>'; };
+      const med = (key, px) => '<span data-medal="' + key + '" data-px="' + px + '"></span>';
       const R = readiness();
       const k = (t) => KEYS[t.key].cls;
       const causes = STUDY.terms.filter((t) => t.cause), nots = STUDY.terms.filter((t) => !t.cause);
       const cm = STUDY.compete || { benefits: [] };
-      const mn = {}; (STUDY.mnemonic.words || []).forEach((w) => { mn[w[1]] = w[0]; });
+      const words = STUDY.mnemonic.words || [];
+      const part = (n, title) => '<div class="cx-part"><span class="eyebrow">Part ' + n + '</span><h2 class="display">' + title + '</h2></div>';
+      const sec = (n) => '<section class="paper cx-sec" data-part="' + n + '">';
+      const NAV = ['Vocabulary', 'Two sides', 'Competition', 'The spark'];
       let h = '';
-      h += '<header class="cx-top"><div class="grow"><div class="eyebrow">Study notes · your whole guide</div><h1 class="display cx-h1">Causes of World War I</h1></div>'
-        + '<button class="btn primary cx-close" type="button">Close</button></header>';
-      h += '<div class="cx-legend"><span class="num"><b>' + R.overall + '%</b> quiz-ready</span><span><i class="cx-dot b0 new"></i> not asked yet</span><span><i class="cx-dot b1"></i> learning</span><span><i class="cx-dot b3"></i> mastered</span></div>';
+      h += '<header class="cx-top"><div class="grow"><div class="eyebrow">Study notes</div><h1 class="display cx-h1">Causes of World War I</h1></div>'
+        + '<button class="btn primary cx-close" type="button">Close</button>'
+        + '<nav class="cx-nav" aria-label="Jump to a part">' + NAV.map((t, i) => '<button class="cx-jump" type="button" data-go="' + (i + 1) + '"><b class="display">' + (i + 1) + '</b><span>' + t + '</span></button>').join('') + '</nav></header>';
+      h += '<div class="cx-legend"><span class="cx-ready"><b class="num">' + R.overall + '%</b> quiz-ready</span><span><i class="cx-dot b0 new"></i>not asked yet</span><span><i class="cx-dot b1"></i>learning</span><span><i class="cx-dot b3"></i>mastered</span></div>';
 
-      h += '<section class="paper cx-sec"><div class="eyebrow">Part 1</div><h2 class="display">Key vocabulary: M.A.I.N.</h2>'
-        + '<p class="cx-lead">The four long-term causes spell <b>M.A.I.N.</b> ' + dot('cause:main') + '</p><div class="cx-terms">';
+      /* ---- Part 1 ---- */
+      h += sec(1) + part(1, 'Key vocabulary: M.A.I.N.')
+        + '<p class="cx-lead">' + dot('cause:main') + 'The four long-term causes spell <b>M.A.I.N.</b></p><div class="cx-terms">';
       causes.forEach((t) => {
-        h += '<article class="cx-term"><div class="cx-letter display key-' + k(t) + '">' + e(t.letter) + '</div><div class="cx-term-body"><h3>' + e(t.name) + '</h3>'
+        h += '<article class="cx-term key-' + k(t) + '"><div class="cx-term-head">' + med(t.key, 40) + '<h3>' + e(t.name) + '</h3></div>'
           + '<p>' + dot('def:' + t.id) + e(t.def) + '</p>'
-          + '<p>' + dot('ex:' + t.id) + '<span class="eyebrow">WWI example</span> ' + e(t.example) + '</p>'
-          + '<p>' + dot('clue:' + t.id) + '<span class="eyebrow">Clue words</span> “' + e(t.clue) + '”</p></div></article>';
+          + '<p class="cx-more">' + dot('ex:' + t.id) + '<span class="eyebrow">WWI example</span> ' + e(t.example) + '</p>'
+          + '<p class="cx-more">' + dot('clue:' + t.id) + '<span class="eyebrow">Clue words</span> “' + e(t.clue) + '”</p></article>';
       });
       h += '</div><h3 class="cx-sub">Two terms that are NOT causes</h3><div class="cx-terms">';
       nots.forEach((t) => {
-        h += '<article class="cx-term not"><div class="cx-letter display key-x">✕</div><div class="cx-term-body"><h3>' + e(t.name) + ' <span class="stamp">Not a cause</span></h3>'
+        h += '<article class="cx-term key-x"><div class="cx-term-head">' + med('X', 40) + '<h3>' + e(t.name) + '</h3><span class="stamp">Not a cause</span></div>'
           + '<p>' + dot('def:' + t.id) + e(t.def) + '</p>'
-          + '<p>' + dot('cause:' + t.id) + dot('ex:' + t.id) + e(t.note) + '</p>'
-          + (t.clue ? '<p>' + dot('clue:' + t.id) + '<span class="eyebrow">Clue words</span> “' + e(t.clue) + '”</p>' : '') + '</div></article>';
+          + '<p class="cx-more">' + dot('cause:' + t.id) + dot('ex:' + t.id) + e(t.note) + '</p>'
+          + (t.clue ? '<p class="cx-more">' + dot('clue:' + t.id) + '<span class="eyebrow">Clue words</span> “' + e(t.clue) + '”</p>' : '') + '</article>';
       });
       h += '</div></section>';
 
-      h += '<section class="paper cx-sec"><div class="eyebrow">Part 2</div><h2 class="display">The two sides</h2>'
+      /* ---- Part 2 ---- */
+      h += sec(2) + part(2, 'The two sides')
         + '<p class="cx-lead">' + dot('sides:local-world') + e(STUDY.lines.alliance || '') + '</p><div class="cx-sides">'
-        + '<div class="cx-side central"><h3>Central Powers <span class="mute">(all four) ' + dot('sides:central4') + '</span></h3><ul>'
-        + STUDY.central.map((c) => '<li>' + dot('side:' + c) + '<b>' + e(c) + '</b></li>').join('') + '</ul>'
-        + '<p class="cx-mn">' + dot('sides:mnemonic') + '“' + (STUDY.mnemonic.words || []).map((w) => '<b>' + e(w[0][0]) + '</b>' + e(w[0].slice(1))).join(' ') + '” = '
-        + (STUDY.mnemonic.words || []).map((w) => '<b>' + e(w[1][0]) + '</b>' + e(w[1].slice(1))).join(', ') + '</p></div>'
-        + '<div class="cx-side allied"><h3>Allied Powers <span class="mute">(know four) ' + dot('sides:allied4') + '</span></h3><ul>'
-        + (STUDY.alliedMain || []).map((c) => '<li>' + dot('side:' + c) + '<b>' + e(c) + '</b>' + (c === 'Italy' ? ' <span class="mute">switched sides to join the Allies in 1915 ' + dot('sides:italy1915') + '</span>' : c === 'Great Britain' ? ' <span class="mute">(United Kingdom)</span>' : '') + '</li>').join('')
-        + '<li>' + dot('side:Belgium') + dot('side:Japan') + '<span class="mute">Also accepted:</span> <b>Belgium</b>, <b>Japan</b></li></ul>'
-        + '<p class="cx-mn">' + dot('side:United States') + '<b>NOT the USA.</b> It was neutral when the war began.</p></div></div></section>';
+        + '<div class="cx-side central"><h3>Central Powers</h3><div class="cx-side-sub">' + dot('sides:central4') + 'all four</div><ul>'
+        + STUDY.central.map((c) => '<li>' + dot('side:' + c) + '<b>' + e(c) + '</b></li>').join('') + '</ul></div>'
+        + '<div class="cx-side allied"><h3>Allied Powers</h3><div class="cx-side-sub">' + dot('sides:allied4') + 'know four</div><ul>'
+        + (STUDY.alliedMain || []).map((c) => '<li>' + dot('side:' + c) + '<b>' + e(c) + '</b>' + (c === 'Italy' ? '<span class="cx-aside">' + dot('sides:italy1915') + 'switched sides to join the Allies in 1915</span>' : c === 'Great Britain' ? '<span class="cx-aside">(United Kingdom)</span>' : '') + '</li>').join('')
+        + '<li class="cx-also">' + dot('side:Belgium') + dot('side:Japan') + 'Also accepted: <b>Belgium</b>, <b>Japan</b></li></ul></div></div>'
+        + '<p class="cx-mn">' + dot('sides:mnemonic') + '“' + words.map((w) => '<b>' + e(w[0][0]) + '</b>' + e(w[0].slice(1))).join(' ') + '” = '
+        + words.map((w) => '<b>' + e(w[1][0]) + '</b>' + e(w[1].slice(1))).join(', ') + '</p>'
+        + '<p class="cx-mn warn">' + dot('side:United States') + '<b>NOT the USA.</b> It was neutral when the war began.</p></section>';
 
-      h += '<section class="paper cx-sec"><div class="eyebrow">Part 3</div><h2 class="display">Competition between nations</h2><p class="cx-lead">' + e(cm.intro || '') + '</p>'
-        + '<h3 class="cx-sub"><span class="pill i">IMPERIALISM</span> The race for colonies</h3><dl class="cx-qa">'
-        + '<dt>Continent colonized the most?</dt><dd>' + dot('imp:africa') + '<b>Africa</b> (the “Scramble for Africa”)</dd>'
-        + '<dt>What did countries hope to gain?</dt><dd>' + dot('imp:resources') + e(cm.benefits[0] || '') + '<br>' + dot('imp:benefits') + e(cm.benefits[1] || '') + '<br>' + dot('imp:benefits') + e(cm.benefits[2] || '') + '</dd>'
-        + '<dt>Why did it breed suspicion?</dt><dd>' + dot('imp:suspicion') + e(cm.suspicion || '') + '</dd></dl>'
-        + '<h3 class="cx-sub"><span class="pill m">MILITARISM</span> The naval race</h3><dl class="cx-qa">'
-        + '<dt>World’s best navy?</dt><dd>' + dot('mil:best-navy') + '<b>Great Britain</b></dd>'
-        + '<dt>Who built a rival navy?</dt><dd>' + dot('mil:rival-navy') + '<b>Germany</b></dd>'
-        + '<dt>Why did both feel LESS safe?</dt><dd>' + dot('mil:less-safe') + e(cm.lessSafe || '') + '</dd></dl>'
+      /* ---- Part 3 ---- */
+      h += sec(3) + part(3, 'Competition between nations') + '<p class="cx-lead">' + e(cm.intro || '') + '</p>'
+        + '<h3 class="cx-sub">' + med('I', 26) + 'Imperialism: the race for colonies</h3><dl class="cx-qa">'
+        + '<div><dt>Continent colonized the most?</dt><dd>' + dot('imp:africa') + '<b>Africa</b> (the “Scramble for Africa”)</dd></div>'
+        + '<div><dt>What did countries hope to gain?</dt><dd>' + dot('imp:resources') + e(cm.benefits[0] || '') + '</dd><dd>' + dot('imp:benefits') + e(cm.benefits[1] || '') + '</dd><dd>' + dot('imp:benefits') + e(cm.benefits[2] || '') + '</dd></div>'
+        + '<div><dt>Why did it breed suspicion?</dt><dd>' + dot('imp:suspicion') + e(cm.suspicion || '') + '</dd></div></dl>'
+        + '<h3 class="cx-sub">' + med('M', 26) + 'Militarism: the naval race</h3><dl class="cx-qa">'
+        + '<div><dt>World’s best navy?</dt><dd>' + dot('mil:best-navy') + '<b>Great Britain</b></dd></div>'
+        + '<div><dt>Who built a rival navy?</dt><dd>' + dot('mil:rival-navy') + '<b>Germany</b></dd></div>'
+        + '<div><dt>Why did both feel LESS safe?</dt><dd>' + dot('mil:less-safe') + e(cm.lessSafe || '') + '</dd></div></dl>'
         + '<h3 class="cx-sub">How each cause made war more likely</h3><div class="cx-connect">'
-        + causes.map((t) => '<p>' + dot('connect:' + t.letter) + '<span class="pill ' + k(t) + '">' + e(t.name.toUpperCase()) + '</span> ' + e(t.connect) + '</p>').join('') + '</div></section>';
+        + causes.map((t) => '<div class="cx-conn key-' + k(t) + '">' + med(t.key, 30) + '<p>' + dot('connect:' + t.letter) + '<b>' + e(t.name) + '.</b> ' + e(t.connect) + '</p></div>').join('') + '</div></section>';
 
-      h += '<section class="paper cx-sec"><div class="eyebrow">Part 4</div><h2 class="display">The spark</h2><p class="cx-lead">' + dot('spark:keg') + e(STUDY.lines.keg || '') + '</p><p class="cx-story">';
-      STUDY.story.parts.forEach((p, i) => { h += e(p); if (i < STUDY.story.blanks.length) { const bl = STUDY.story.blanks[i]; h += '<mark>' + e(bl.answer) + '</mark>' + dot(bl.fact); } });
-      h += '</p><h3 class="cx-sub">The chain reaction ' + dot('chain:order') + '</h3><ol class="cx-chain">'
-        + STUDY.chain.map((s, i) => '<li><span class="cx-n display">' + (i + 1) + '</span><span>' + e(s) + ' ' + dot('chain:' + (i + 1)) + '</span></li>').join('') + '</ol>'
+      /* ---- Part 4 ---- */
+      h += sec(4) + part(4, 'The spark') + '<p class="cx-lead">' + dot('spark:keg') + e(STUDY.lines.keg || '') + '</p><p class="cx-story">';
+      STUDY.story.parts.forEach((p, i) => { h += e(p); if (i < STUDY.story.blanks.length) { const bl = STUDY.story.blanks[i]; h += dot(bl.fact) + '<mark>' + e(bl.answer) + '</mark>'; } });
+      h += '</p><h3 class="cx-sub">' + med('S', 26) + 'The chain reaction ' + dot('chain:order') + '</h3><ol class="cx-chain">'
+        + STUDY.chain.map((s, i) => '<li><span class="cx-n display">' + (i + 1) + '</span><span class="cx-chain-t">' + dot('chain:' + (i + 1)) + e(s) + '</span></li>').join('') + '</ol>'
         + '<h3 class="cx-sub">Long-term cause or spark?</h3><ul class="cx-ls">'
-        + STUDY.longOrSpark.filter((x) => !x.variant).map((x) => '<li><span class="cx-badge ' + (x.ans === 'L' ? 'l' : 's') + '">' + x.ans + '</span><span>' + e(x.text) + ' ' + dot(x.fact) + '</span></li>').join('')
+        + STUDY.longOrSpark.filter((x) => !x.variant).map((x) => '<li><span class="cx-badge ' + (x.ans === 'L' ? 'l' : 's') + ' display">' + x.ans + '</span><span>' + dot(x.fact) + e(x.text) + '</span></li>').join('')
         + '</ul><p class="cx-mn">L = long-term cause (built up for years). S = spark (the one event that lit the fuse).</p></section>';
 
       const wrap = el('div', { class: 'wrap cx', html: h });
-      const screen = el('div', { class: 'screen cx-screen' }, wrap);
+      wrap.querySelectorAll('[data-medal]').forEach((n) => { n.replaceWith(medal(n.getAttribute('data-medal'), parseInt(n.getAttribute('data-px'), 10) || 28)); });
+      const screen = el('div', { class: 'screen cx-screen qz-screen-in' }, wrap);
       let done = false;
-      const close = () => { if (done) return; done = true; window.removeEventListener('keydown', onKey, true); screen.remove(); openCount--; sfx('click'); resolve(); };
+      const close = () => { if (done) return; done = true; window.removeEventListener('keydown', onKey, true); sfx('click'); leave(screen, () => { screen.remove(); openCount--; resolve(); }); };
       const onKey = (ev) => { if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); close(); } };
       window.addEventListener('keydown', onKey, true);
       wrap.querySelector('.cx-close').addEventListener('click', close);
-      const bottom = el('button', { class: 'btn primary big', type: 'button', text: 'Close notes' });
+      wrap.querySelectorAll('.cx-jump').forEach((bt) => bt.addEventListener('click', () => {
+        const target = wrap.querySelector('.cx-sec[data-part="' + bt.getAttribute('data-go') + '"]'); if (!target) return;
+        sfx('click');
+        const top = target.getBoundingClientRect().top - screen.getBoundingClientRect().top + screen.scrollTop - wrap.querySelector('.cx-top').offsetHeight - 10;
+        try { screen.scrollTo({ top, behavior: reduced() ? 'auto' : 'smooth' }); } catch (err) { screen.scrollTop = top; }
+      }));
+      const bottom = el('button', { class: 'btn primary big cx-bottom', type: 'button', text: 'Close notes' });
       bottom.addEventListener('click', close);
       wrap.appendChild(bottom);
       root().appendChild(screen); openCount++;

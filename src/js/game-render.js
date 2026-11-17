@@ -251,7 +251,7 @@
   /* ---------- frame ---------- */
   R.init = function (canvas) { cv = canvas; ctx = cv.getContext('2d'); };
   R.resize = function (g) {
-    const dpr = Math.min(window.devicePixelRatio || 1, 2), w = cv.clientWidth || 800, h = cv.clientHeight || 600;
+    const dpr = Math.min(window.devicePixelRatio || 1, PK.dprCap || 2), w = cv.clientWidth || 800, h = cv.clientHeight || 600;
     g.W = w; g.H = h; g.dpr = dpr; cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
     g.scale = Math.max(1.0, Math.min(1.55, Math.sqrt(w * h) / 740)); g.vw = w / g.scale; g.vh = h / g.scale;
   };

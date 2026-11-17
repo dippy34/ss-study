@@ -232,7 +232,7 @@
   /* Draw a character / monster / boss into any <canvas>. o = {size: cssPx | [w,h], moving, faceX, shadow:false, ...entity overrides} */
   PK.portrait = {
     hero(canvas, ch, t, o) {
-      o = o || {}; const c = prep(canvas, o.size || 64, o.span || 50, o.oy === undefined ? 6 : o.oy), p = PK.fakePlayer(ch, { moving: !!o.moving, faceX: o.faceX || 1, face: o.faceX < 0 ? Math.PI : 0 }), g = fakeG(t, p), m = mod('hero', 'draw');
+      o = o || {}; const c = prep(canvas, o.size || 64, o.span || 58, o.oy === undefined ? 9 : o.oy), p = PK.fakePlayer(ch, { moving: !!o.moving, faceX: o.faceX || 1, face: o.faceX < 0 ? Math.PI : 0 }), g = fakeG(t, p), m = mod('hero', 'draw');
       if (m) { try { if (o.shadow !== false) shadow(c, p.r * 1.2); m.draw(c, p, t, g); return; } catch (err) { fail('hero', 'draw', err); } }
       B.hero(c, p, t);
     },

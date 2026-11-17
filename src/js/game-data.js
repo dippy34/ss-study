@@ -11,7 +11,7 @@
   PK.WEAPONS = {
     blaster: { name: 'Fact Blaster', icon: '💡', key: 'S', max: 6,
       hook: 'M.A.I.N. = Militarism, Alliances, Imperialism, Nationalism.',
-      lv: ['Fires fact bolts at the nearest enemy.', '+1 bolt', '+40% damage, bolts pierce 1 enemy', '+1 bolt', 'Fires 25% faster', '+1 bolt, +1 pierce'] },
+      lv: ['Fires fact bolts at the nearest enemy.', '+1 bolt', '+40% damage, bolts pierce 2 enemies', '+1 bolt', 'Fires 30% faster', '+1 bolt, +2 pierce'] },
     cannon: { name: 'Dreadnought Cannon', icon: '🚢', key: 'M', max: 6,
       hook: 'Germany and Great Britain raced to build the biggest battleships.',
       lv: ['Lobs a shell that explodes in a big blast.', 'Bigger blast, +25% damage', '+1 shell', 'Bigger blast, +25% damage', '+1 shell', 'Huge blast, reloads faster'] },
@@ -20,7 +20,7 @@
       lv: ['Two allied orbs circle you and smash enemies.', '+1 orb', 'Wider orbit, +damage', '+1 orb', '+1 orb, spins faster', '+1 orb, +damage'] },
     chain: { name: 'Chain Reaction', icon: '⚡', key: 'S', max: 6,
       hook: 'One assassination set off a chain reaction that pulled all of Europe into war.',
-      lv: ['Lightning jumps between 3 enemies.', '+1 jump, +damage', '+1 jump, fires faster', '+1 jump, +damage', '+1 jump, fires faster', '+2 jumps, +damage'] },
+      lv: ['Lightning jumps between 4 enemies.', '+1 jump, +damage', '+1 jump, fires faster', '+1 jump, +damage', '+1 jump, fires faster', '+2 jumps, +damage'] },
     boomerang: { name: 'Scramble Boomerang', icon: '🌍', key: 'I', max: 6,
       hook: 'Imperialism: European powers scrambled to grab colonies in Africa.',
       lv: ['Flies out, grabs gems, and comes back. Hits twice.', 'Flies farther, +damage', '+1 boomerang', 'Bigger, +damage', 'Throws faster', '+1 boomerang'] },
@@ -45,11 +45,11 @@
       hook: 'Russia mobilized its army to defend its ally, Serbia.' },
     magnet: { name: 'Raw Materials', icon: '🧲', key: 'I', max: 5, per: '+30% pickup range',
       hook: 'Colonies gave raw materials: rubber, oil, gold, diamonds, cotton.' },
-    armor: { name: 'Naval Armor', icon: '🛡️', key: 'M', max: 5, per: 'Take 1 less damage per hit',
+    armor: { name: 'Naval Armor', icon: '🛡️', key: 'M', max: 5, per: 'Take 7% less damage',
       hook: 'Great Britain had the world\'s best navy. Germany tried to match it.' },
     heart: { name: 'National Pride', icon: '❤️', key: 'N', max: 5, per: '+20 max HP and heal 20',
       hook: 'Nationalism: extreme pride and devotion to your own nation.' },
-    regen: { name: 'Field Rations', icon: '🍎', key: 'X', max: 5, per: 'Heal +0.4 HP every second',
+    regen: { name: 'Field Rations', icon: '🍎', key: 'X', max: 5, per: 'Heal +0.3 HP every second',
       hook: 'Communism was NOT a cause — it rose in Russia during the war (1917).' },
     luck: { name: 'Lucky Telegram', icon: '🍀', key: 'S', max: 5, per: '+6% critical hit chance',
       hook: 'The assassination was the spark. M.A.I.N. were the long-term causes.' },
@@ -63,15 +63,15 @@
 
   /* ---------- enemies ---------- */
   PK.ENEMIES = {
-    recruit: { key: 'M', name: 'Recruit', r: 10, hp: 9, spd: 74, dmg: 6, xp: 1, ai: 'chase' },
-    brute: { key: 'M', name: 'Brute', r: 18, hp: 32, spd: 46, dmg: 13, xp: 4, ai: 'chase', kb: 0.35 },
-    gunboat: { key: 'M', name: 'Gunboat', r: 16, hp: 24, spd: 52, dmg: 8, xp: 4, ai: 'gun' },
+    recruit: { key: 'M', name: 'Recruit', r: 10, hp: 9, spd: 68, dmg: 5, xp: 1, ai: 'chase' },
+    brute: { key: 'M', name: 'Brute', r: 18, hp: 32, spd: 44, dmg: 11, xp: 4, ai: 'chase', kb: 0.35 },
+    gunboat: { key: 'M', name: 'Gunboat', r: 16, hp: 24, spd: 50, dmg: 7, xp: 4, ai: 'gun' },
     link: { key: 'A', name: 'Ally', r: 12, hp: 13, spd: 72, dmg: 8, xp: 2, ai: 'link' },
     envoy: { key: 'A', name: 'Envoy', r: 9, hp: 7, spd: 86, dmg: 5, xp: 1, ai: 'chase' },
     grabber: { key: 'I', name: 'Grabber', r: 14, hp: 20, spd: 92, dmg: 8, xp: 3, ai: 'grab' },
     scout: { key: 'I', name: 'Scout', r: 9, hp: 7, spd: 96, dmg: 5, xp: 1, ai: 'chase' },
     zealot: { key: 'N', name: 'Zealot', r: 13, hp: 15, spd: 88, dmg: 11, xp: 3, ai: 'dash' },
-    patriot: { key: 'N', name: 'Patriot', r: 9, hp: 8, spd: 100, dmg: 6, xp: 1, ai: 'chase' },
+    patriot: { key: 'N', name: 'Patriot', r: 9, hp: 8, spd: 92, dmg: 6, xp: 1, ai: 'chase' },
     spark: { key: 'S', name: 'Spark', r: 8, hp: 6, spd: 132, dmg: 5, xp: 1, ai: 'wobble' },
   };
 
@@ -87,22 +87,31 @@
       boss: 'pact', bossName: 'THE PACT TWINS', bossHp: 3000,
       bossLine: 'Hit one ally and the other joins the fight. That is how a local conflict became a world war.',
       waves: [[0, 2.2, { envoy: 5, link: 1 }], [25, 2.9, { envoy: 5, link: 2, recruit: 2 }], [55, 3.5, { envoy: 5, link: 3, brute: 1.5 }], [80, 4.2, { envoy: 5, link: 4, brute: 2, gunboat: 1 }]] },
-    { key: 'I', n: 3, name: 'IMPERIALISM', color: COL.I, music: 'act3', len: 110, hp: 4.6, rate: 1.5,
+    { key: 'I', n: 3, name: 'IMPERIALISM', color: COL.I, music: 'act3', len: 110, hp: 4.8, rate: 1.6,
       def: 'A stronger country takes over weaker territories and colonies for land, resources and power.',
       boss: 'emperor', bossName: 'EMPEROR GRAB', bossHp: 5200,
       bossLine: 'The Scramble for Africa: rivals competing for colonies, raw materials and new markets.',
       waves: [[0, 2.8, { scout: 6, grabber: 1 }], [25, 3.5, { scout: 6, grabber: 2, envoy: 2, link: 1 }], [55, 4.2, { scout: 6, grabber: 3, brute: 2, link: 1.5 }], [85, 5, { scout: 6, grabber: 4, brute: 2, gunboat: 1.5, link: 2 }]] },
-    { key: 'N', n: 4, name: 'NATIONALISM', color: COL.N, music: 'act4', len: 110, hp: 8, rate: 1.6,
+    { key: 'N', n: 4, name: 'NATIONALISM', color: COL.N, music: 'act4', len: 110, hp: 8, rate: 1.7,
       def: 'Extreme pride, loyalty and devotion to your own nation or ethnic group, often believing it is superior.',
       boss: 'general', bossName: 'GENERAL PRIDE', bossHp: 8000,
       bossLine: 'Intense national pride made countries unwilling to back down.',
       waves: [[0, 3.4, { patriot: 6, zealot: 1 }], [25, 4.2, { patriot: 6, zealot: 2, scout: 2, grabber: 1 }], [55, 5, { patriot: 6, zealot: 3, brute: 2, link: 2 }], [85, 5.8, { patriot: 6, zealot: 4, brute: 2, gunboat: 2, grabber: 2, link: 2 }]] },
-    { key: 'S', n: 5, name: 'THE SPARK', color: COL.S, music: 'act5', len: 115, hp: 12, rate: 1.7,
+    { key: 'S', n: 5, name: 'THE SPARK', color: COL.S, music: 'act5', len: 115, hp: 12, rate: 1.8,
       def: 'June 28, 1914, Sarajevo: Gavrilo Princip assassinates Archduke Franz Ferdinand. The fuse is lit.',
       boss: 'spark', bossName: 'THE SPARK', bossHp: 13000,
       bossLine: 'The assassination of Archduke Franz Ferdinand was the spark that started the war.',
       waves: [[0, 4.5, { spark: 8, patriot: 2, zealot: 1 }], [25, 5.5, { spark: 8, zealot: 2, grabber: 2, link: 2 }], [55, 6.5, { spark: 8, zealot: 3, brute: 3, gunboat: 2, link: 2 }], [85, 7.5, { spark: 9, zealot: 3, brute: 3, gunboat: 2, grabber: 3, link: 3 }]] },
   ];
+
+  /* balance knobs (tuned with the headless simulator: Game.debug.sim) */
+  PK.TUNE = {
+    actDmg: [1, 1.3, 1.7, 2.1, 2.55],
+    hpAct: [1, 1.35, 1.5, 1.65, 1.8],              /* extra monster health multiplier per act (on top of ACTS[].hp) */   /* monster contact damage multiplier per act */
+    bossDps: 10,                           /* boss health = recent damage-per-second x this (clamped around bossHp) */
+    bossAdds: 0.2,                         /* horde spawn rate while a boss is up */
+    armorPct: 0.07,                        /* each armour point = 7% less damage taken (capped at 60%) */
+  };
 
   /* boss facts art + menus can read without the engine */
   PK.BOSS_INFO = {
