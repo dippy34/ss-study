@@ -32,7 +32,7 @@
       example: 'Slavic nationalists in Serbia wanted freedom from Austria-Hungary, leading Gavrilo Princip to assassinate Archduke Franz Ferdinand.',
       clue: "extreme pride or devotion to one's country",
       connect: 'Intense national pride made countries unwilling to back down from conflicts, while ethnic groups living inside empires (such as Serbs in Austria-Hungary) were willing to use violence to win independence.',
-      connectShort: 'National pride made countries unwilling to back down, and ethnic groups inside empires were willing to use violence to win independence.' },
+      connectShort: 'Intense pride made countries unwilling to back down, and ethnic groups inside empires were willing to use violence to win independence.' },
     { id: 'isolationism', name: 'Isolationism', letter: '', cause: false, key: 'X',
       def: "A policy of staying completely out of other countries' conflicts, alliances, and political affairs.",
       short: "Staying completely out of other countries' conflicts, alliances, and political affairs",
@@ -99,7 +99,7 @@
       { answer: 'Austria-Hungary', options: ['Austria-Hungary', 'Germany', 'Serbia', 'Russia'], fact: 'spark:heir' },
       { answer: '1914', options: ['1914', '1915', '1917', '1900'], fact: 'spark:date' },
       { answer: 'Sarajevo', options: ['Sarajevo', 'Berlin', 'Paris', 'London'], fact: 'spark:city' },
-      { answer: 'Gavrilo Princip', options: ['Gavrilo Princip', 'Franz Ferdinand', 'Dreadnought', 'Bulgaria'], fact: 'spark:assassin' },
+      { answer: 'Gavrilo Princip', options: ['Gavrilo Princip', 'Kaiser Wilhelm II', 'Tsar Nicholas II', 'Otto von Bismarck'], fact: 'spark:assassin' },
       { answer: 'Serbia', options: ['Serbia', 'Russia', 'Germany', 'Bulgaria'], fact: 'spark:serbia' },
       { answer: 'spark', options: ['spark', 'powder keg', 'alliance', 'colony'], fact: 'spark:spark' },
     ],
@@ -201,20 +201,20 @@
     ['alliances', 'connect:A', 'Countries promised to defend each other, so a small disagreement could drag every major nation into war.'],
     ['imperialism', 'ex:imperialism', 'European powers competed fiercely to colonize Africa and Asia.'],
     ['imperialism', 'ex:imperialism', 'The "Scramble for Africa" created jealousy and distrust.'],
-    ['nationalism', 'ex:nationalism', 'Slavic nationalists in Serbia wanted freedom from Austria-Hungary.'],
+    ['nationalism', 'ex:nationalism', 'Slavs in Serbia, loyal to their own people, wanted freedom from Austria-Hungary.'],
     ['nationalism', 'connect:N', 'Serbs living inside Austria-Hungary were willing to use violence to win independence.'],
-    ['nationalism', 'connect:N', 'Intense national pride made countries unwilling to back down from conflicts.'],
+    ['nationalism', 'connect:N', 'Intense pride in their own country made nations unwilling to back down from conflicts.'],
   ].forEach((e) => {
     const t = T[e[0]];
     MC(e[1], 'Which M.A.I.N. cause does this show? "' + e[2] + '"', [t.name].concat(causeNames.filter((n) => n !== t.name)),
       t.name + ' — ' + (e[1].indexOf('connect') === 0 ? t.connectShort : t.example));
   });
-  MC('ex:militarism', 'Before 1914, what did the major European powers do to their armies?', ['Doubled them', 'Cut them in half', 'Sent them all to Africa', 'Got rid of them'], 'Militarism: major European powers doubled their armies before 1914.');
+  MC('ex:militarism', 'Before 1914, what did the major European powers do to their armies?', ['Doubled them', 'Tripled them', 'Kept them the same size', 'Cut them in half'], 'Militarism: major European powers doubled their armies before 1914.');
   MC('ex:militarism', 'Which is a WWI example of militarism?', ['Germany and Great Britain racing to build the biggest battleships', 'The United States staying neutral in 1914', 'Serbs wanting freedom from Austria-Hungary', 'Europeans competing for colonies in Africa'], 'Militarism: ' + T.militarism.example);
   MC('ex:alliances', 'Europe split into two rival teams. What were they called?', ['The Allied Powers and the Central Powers', 'The Northern Powers and the Southern Powers', 'The Colonial Powers and the Neutral Powers', 'The Naval Powers and the Army Powers'], 'Alliances: ' + T.alliances.example);
   MC('ex:alliances', 'Which is a WWI example of alliances?', ['Europe splitting into the Allied Powers and the Central Powers', 'The "Scramble for Africa"', 'Germany building Dreadnoughts', 'The 1917 Russian Revolution'], 'Alliances: ' + T.alliances.example);
   MC('ex:imperialism', 'Which is a WWI example of imperialism?', ['European powers competing to colonize Africa and Asia', 'Countries promising to defend each other if attacked', 'Armies doubling in size before 1914', 'Gavrilo Princip assassinating the Archduke'], 'Imperialism: ' + T.imperialism.example);
-  MC('ex:imperialism', 'The race to grab colonies in Africa was called the…', ['Scramble for Africa', 'Powder Keg', 'Naval Race', 'Chain Reaction'], 'Imperialism: ' + T.imperialism.example);
+  MC('ex:imperialism', 'European powers raced fiercely to grab colonies. That race was called the…', ['Scramble for Africa', 'Naval Arms Race', 'Powder Keg', 'Chain Reaction'], 'Imperialism: ' + T.imperialism.example);
   MC('ex:nationalism', 'Which M.A.I.N. cause best explains why Gavrilo Princip assassinated the Archduke?', ['Nationalism', 'Militarism', 'Imperialism', 'Alliances'], 'Nationalism: ' + T.nationalism.example);
   MC('ex:nationalism', 'What did Slavic nationalists in Serbia want?', ['Freedom from Austria-Hungary', 'More colonies in Africa', 'The biggest navy in the world', 'To stay neutral like the United States'], 'Nationalism: ' + T.nationalism.example);
   MC('ex:isolationism', "Which term describes the United States' position when the war began in 1914?", ['Isolationism', 'Imperialism', 'Militarism', 'Communism'], T.isolationism.note);
@@ -252,7 +252,7 @@
     FIXED('side:' + c, q, sideChoices, sideIdx[s], sideWhy(c));
     if (s !== 'neutral') {
       const subj = (c === 'Ottoman Empire' ? 'The ' : '') + c;
-      TF('side:' + c, subj + ' was one of the Central Powers.', s === 'central', sideWhy(c));
+      TF('side:' + c, c === 'Italy' ? 'After switching sides in 1915, Italy fought alongside the Central Powers.' : subj + ' was one of the Central Powers.', s === 'central', sideWhy(c));
       TF('side:' + c, subj + ' was one of the Allied Powers.', s === 'allied', sideWhy(c));
     }
   });
@@ -276,8 +276,9 @@
   MC('side:United States', 'Why is the USA left off the list of Allied Powers?', ['It was neutral when the war began', 'It was one of the Central Powers', 'It switched sides in 1915', 'It was a colony in Africa'], sideWhy('United States'));
   TF('side:United States', 'The United States was one of the Allied Powers when the war began in 1914.', false, sideWhy('United States'));
   MC('sides:mnemonic', '"Bears Ate Green Oranges" helps you remember the…', ['four Central Powers', 'Allied Powers', 'four M.A.I.N. causes', 'steps of the chain reaction'], 'Bears Ate Green Oranges = Bulgaria, Austria-Hungary, Germany, Ottoman Empire — the four Central Powers.');
-  [['Bears', 'Bulgaria', ['Belgium', 'Great Britain', 'Russia']], ['Ate', 'Austria-Hungary', ['Africa', 'the Allied Powers', 'Serbia']], ['Green', 'Germany', ['Great Britain', 'Gavrilo Princip', 'France']], ['Oranges', 'Ottoman Empire', ['Russia', 'Italy', 'Japan']]]
+  [['Bears', 'Bulgaria', ['Belgium', 'Great Britain', 'Russia']], ['Ate', 'Austria-Hungary', ['Africa', 'the Allied Powers', 'Serbia']], ['Green', 'Germany', ['Great Britain', 'Gavrilo Princip', 'France']]]
     .forEach((m) => MC('sides:mnemonic', 'In "Bears Ate Green Oranges," what does "' + m[0] + '" stand for?', [m[1]].concat(m[2]), 'Bears Ate Green Oranges = Bulgaria, Austria-Hungary, Germany, Ottoman Empire — the four Central Powers.'));
+  MC('sides:mnemonic', 'Which of these is NOT one of the countries in "Bears Ate Green Oranges"?', ['Great Britain', 'Germany', 'Bulgaria', 'Austria-Hungary'], 'Bears Ate Green Oranges = Bulgaria, Austria-Hungary, Germany, Ottoman Empire — the four Central Powers. Great Britain was an Allied Power.');
   const italyWhy = 'Italy switched sides to join the Allies in 1915.';
   MC('sides:italy1915', 'What did Italy do in 1915?', ['Switched sides to join the Allies', 'Switched sides to join the Central Powers', 'Declared itself neutral for good', 'Invaded Belgium'], italyWhy);
   MC('sides:italy1915', 'In what year did Italy switch sides to join the Allies?', ['1915', '1914', '1917', '1900'], italyWhy);
@@ -297,11 +298,11 @@
   MC('imp:resources', 'Which is something countries hoped to GET from their colonies?', ['Raw materials like rubber, oil, gold, diamonds, and cotton', 'A promise to stay neutral', 'Smaller armies and navies', 'Fewer places to sell goods'], resWhy);
   MC('imp:resources', 'Rubber, oil, gold, diamonds, and cotton are all examples of…', ['raw materials from colonies', 'manufactured goods', 'alliances', 'Dreadnoughts'], resWhy);
   MC('imp:resources', 'Which group lists natural resources countries wanted from colonies?', ['Rubber, oil, gold, diamonds', 'Battleships, armies, war plans', 'Treaties, promises, partnerships', 'Flags, pride, loyalty'], resWhy);
-  MC('imp:benefits', 'Besides raw materials, colonies gave a country new ______ to sell its manufactured goods.', ['markets', 'alliances', 'navies', 'archdukes'], benWhy);
+  MC('imp:benefits', 'Besides raw materials, colonies gave a country new ______ to sell its manufactured goods.', ['markets', 'factories', 'alliances', 'navies'], benWhy);
   MC('imp:benefits', 'Which was NOT something a country hoped to gain from colonies?', ['Staying out of world affairs', 'Raw materials and natural resources', 'New markets to sell manufactured goods', 'Global power and prestige'], benWhy);
   MC('imp:benefits', 'Why did European countries want colonies?', ['For raw materials, new markets, wealth, land, and global power', 'To stay out of other countries\' conflicts', 'To share wealth equally among citizens', 'To shrink their armies'], benWhy);
   MC('imp:suspicion', 'How did competing for colonies make European countries more suspicious of each other?', ['They wanted the same land and resources, and feared rivals would grow richer and stronger', 'They agreed to share every colony equally', 'They stopped building armies and navies', 'They all joined the same alliance'], compete.suspicion);
-  MC('imp:suspicion', 'Wanting the same land and resources led to border disputes, near-clashes, and feelings of…', ['jealousy and distrust', 'friendship and trust', 'neutrality and calm', 'boredom'], compete.suspicion);
+  MC('imp:suspicion', 'Wanting the same land and resources led to border disputes, near-clashes, and feelings of…', ['jealousy and distrust', 'pride and loyalty', 'safety and security', 'neutrality and calm'], compete.suspicion);
   MC('imp:suspicion', 'What did each country worry about as its rivals grabbed colonies?', ['That rivals would grow richer and stronger', 'That rivals would become neutral', 'That rivals would give up their navies', 'That rivals would run out of colonies to sell'], compete.suspicion);
   MC('mil:best-navy', "Which country had the world's best navy before WWI?", ['Great Britain', 'Germany', 'Russia', 'Austria-Hungary'], "Great Britain had the world's best navy; Germany tried to build a rival navy to match it.");
   TF('mil:best-navy', "Germany had the world's best navy before WWI.", false, "Great Britain had the world's best navy; Germany tried to build a rival navy to match it.");
@@ -311,7 +312,7 @@
   MC('mil:rival-navy', 'The naval arms race was between which two countries?', ['Germany and Great Britain', 'France and Russia', 'Serbia and Austria-Hungary', 'Italy and Bulgaria'], 'Germany and Great Britain competed in a naval arms race to build the biggest battleships.');
   MC('mil:less-safe', 'Why did the naval race make both countries feel LESS safe?', ['Each time Germany built warships, Britain saw a threat and built even more, so both feared a surprise attack', 'Both countries ran out of sailors', 'The ships were too slow to be useful', 'They agreed to share one navy'], compete.lessSafe);
   MC('mil:less-safe', 'When Germany built new warships, how did Great Britain respond?', ['It built even more ships', 'It gave up its navy', 'It joined the Central Powers', 'It became neutral'], compete.lessSafe);
-  MC('mil:less-safe', 'In the naval race, Dreadnoughts were a kind of…', ['warship', 'alliance', 'colony', 'army plan'], compete.lessSafe);
+  MC('mil:less-safe', 'What were Dreadnoughts?', ['Powerful new warships', 'Secret defensive alliances', 'Colonies in Africa', 'Nationalist groups in Serbia'], compete.lessSafe);
   TF('mil:less-safe', 'The naval race made Great Britain and Germany feel safer.', false, compete.lessSafe);
   MC('mil:less-safe', 'The constant naval buildup made both nations fear a ______ and prepare for war.', ['surprise attack', 'peace treaty', 'new colony', 'revolution'], compete.lessSafe);
   terms.filter((t) => t.cause).forEach((t) => {
@@ -321,7 +322,7 @@
   });
   MC('connect:M', 'Because countries were already armed and ready to fight, leaders were quicker to choose…', ['war instead of peaceful compromise', 'peace instead of war', 'neutrality', 'new colonies'], 'Militarism: ' + T.militarism.connect);
   MC('connect:A', 'Europe was divided into two armed, rival teams. Why was that dangerous?', ['Even a small disagreement could drag every major nation into a massive war', 'No country had any friends', 'Nobody had an army', 'It kept every conflict local'], 'Alliances: ' + T.alliances.connect);
-  MC('connect:I', 'Competition for colonies made European powers view each other as…', ['enemies long before 1914', 'partners and friends', 'neutral neighbors', 'one big team'], 'Imperialism: ' + T.imperialism.connect);
+  MC('connect:I', 'Competition for colonies made European powers view each other as…', ['enemies long before 1914', 'allies who must defend each other', 'neutral countries', 'future colonies'], 'Imperialism: ' + T.imperialism.connect);
   MC('connect:N', 'What were some ethnic groups inside empires (such as Serbs in Austria-Hungary) willing to do?', ['Use violence to win independence', 'Give up and stay quiet', 'Build the biggest navy', 'Colonize Africa'], 'Nationalism: ' + T.nationalism.connect);
 
   /* -- the spark -- */
@@ -329,13 +330,13 @@
   MC('spark:keg', 'In the powder keg picture, what "lit the fuse"?', ['The assassination of Archduke Franz Ferdinand', 'The Scramble for Africa', 'The naval arms race', 'The United States staying neutral'], kegLine);
   MC('spark:keg', 'If the assassination was the spark, what was the powder keg?', ['The M.A.I.N. causes building up pressure', 'The city of Sarajevo', 'The United States', 'The Russian Revolution'], kegLine);
   MC('spark:heir', 'Archduke Franz Ferdinand was heir to the throne of…', ['Austria-Hungary', 'Germany', 'Serbia', 'Russia'], storyLine);
-  MC('spark:heir', 'Who was the heir to the throne of Austria-Hungary?', ['Archduke Franz Ferdinand', 'Gavrilo Princip', 'A Serbian nationalist', 'A British admiral'], storyLine);
+  MC('spark:heir', 'Who was the heir to the throne of Austria-Hungary?', ['Archduke Franz Ferdinand', 'Gavrilo Princip', 'Kaiser Wilhelm II', 'Tsar Nicholas II'], storyLine);
   MC('spark:date', 'On what date was Archduke Franz Ferdinand assassinated?', ['June 28, 1914', 'June 28, 1917', 'July 4, 1914', 'June 28, 1915'], storyLine);
   MC('spark:date', 'In what year was the Archduke assassinated?', ['1914', '1915', '1917', '1900'], storyLine);
   TF('spark:date', 'Archduke Franz Ferdinand was assassinated in 1917.', false, storyLine);
   MC('spark:city', 'In which city was the Archduke assassinated?', ['Sarajevo', 'Berlin', 'Paris', 'London'], storyLine);
   MC('spark:city', 'What happened in Sarajevo on June 28, 1914?', ['Archduke Franz Ferdinand was assassinated', 'Germany invaded Belgium', 'Italy switched sides', 'The Russian Revolution began'], storyLine);
-  MC('spark:assassin', 'Who assassinated Archduke Franz Ferdinand?', ['Gavrilo Princip', 'A German general', 'A Russian soldier', 'A British sailor'], storyLine);
+  MC('spark:assassin', 'Who assassinated Archduke Franz Ferdinand?', ['Gavrilo Princip', 'Kaiser Wilhelm II', 'Tsar Nicholas II', 'Otto von Bismarck'], storyLine);
   MC('spark:assassin', 'Who was Gavrilo Princip?', ['The assassin of Archduke Franz Ferdinand', 'The heir to the throne of Austria-Hungary', 'The leader of Germany\'s navy', 'A neutral American'], storyLine);
   MC('spark:serbia', 'Gavrilo Princip was part of a nationalist group connected to which country?', ['Serbia', 'Russia', 'Germany', 'Bulgaria'], storyLine);
   TF('spark:serbia', "Gavrilo Princip's nationalist group was connected to Germany.", false, storyLine);

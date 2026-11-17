@@ -275,7 +275,10 @@
   }
 
   /* ================= enemies ================= */
-  const onScreen = (e, m) => Math.abs(e.x - g.cam.x) < g.vw / 2 - m && Math.abs(e.y - g.cam.y) < g.vh / 2 - m;
+  /* world distance from the middle of the screen up to the bottom edge of the HUD (boss bar included while it shows) */
+  const topRoom = () => (PK.UI && PK.UI.topInset && g.H ? (g.H / 2 - PK.UI.topInset(false)) / (g.scale * (g.zoom || 1)) : g.vh / 2);
+  /* in view AND not tucked behind the HUD strip */
+  const onScreen = (e, m) => { const dy = e.y - g.cam.y; return Math.abs(e.x - g.cam.x) < g.vw / 2 - m && dy < g.vh / 2 - m && dy > m - topRoom(); };
   function edge(m) {
     const hw = g.vw / 2 + m, hh = g.vh / 2 + m, cx = g.cam.x, cy = g.cam.y, per = Math.random() * (hw * 4 + hh * 4);
     if (per < hw * 2) return [cx - hw + per, cy - hh]; if (per < hw * 4) return [cx - hw + (per - hw * 2), cy + hh];
@@ -327,7 +330,7 @@
           break;
         }
         case 'gun': {
-          const R0 = Math.max(110, Math.min(240, Math.min(g.vw, g.vh) / 2 - 36));
+          const R0 = Math.max(110, Math.min(240, Math.min(g.vw / 2, g.vh / 2, topRoom()) - 36));
           if (d < R0 * 0.72) { ux = -ux; uy = -uy; sp *= 0.8; } else if (d < R0) { const nx = -uy; uy = ux; ux = nx; sp *= 0.6; }
           e.cd -= dt; if (e.cd <= 0) { if (onScreen(e, 8)) { e.cd = rnd(2.4, 3.2); eshot(e.x, e.y, Math.atan2(dy, dx), 180, 6, e.dmg); } else e.cd = 0.25; }
           break;
@@ -353,7 +356,7 @@
       init(b) { b.a1 = 2; b.a2 = 5; b.a3 = 7; b.arms = 0; },
       update(b, dt, p) {
         moveTo(b, p.x, p.y, b.spd, dt); const rate = b.enr > 0 ? 1.5 : 1;
-        if ((b.a1 -= dt * rate) <= 0) { b.a1 = 2.4; const n = 3 + b.arms, a0 = ang(b, p); for (let i = 0; i < n; i++) eshot(b.x, b.y, a0 + (i - (n - 1) / 2) * 0.19, 190, 7, 8); sfx('shoot', { pitch: 0.55 }); }
+        if ((b.a1 -= dt * rate) <= 0) { b.a1 = 2.6; const n = 3 + b.arms, a0 = ang(b, p); for (let i = 0; i < n; i++) eshot(b.x, b.y, a0 + (i - (n - 1) / 2) * 0.19, 172, 7, 8); sfx('shoot', { pitch: 0.55 }); }
         if ((b.a2 -= dt * rate) <= 0) { b.a2 = 7.5; for (let i = 0; i < 12; i++) eshot(b.x, b.y, i / 12 * TAU + b.t, 140, 7, 8); sfx('explosion'); }
         if ((b.a3 -= dt) <= 0) { b.a3 = 9; const more = b.arms < 4; b.arms = Math.min(4, b.arms + 1); for (let i = 0; i < 5; i++) spawnNear('recruit', b, 70); text(b.x, b.y - b.r - 24, more ? 'ARMS RACE! +1 GUN' : 'ARMS RACE!', COL.M, 16, 1.4); }
       } },
@@ -392,7 +395,7 @@
       init(b) { b.a1 = 3; b.sp = 0; b.spA = 0; b.spT = 0; b.a2 = 6; b.a3 = 8; b.fuse = 80; b.fuseMax = 80; b.orb = 1; b.blink = 5; },
       update(b, dt, p) {
         const low = b.hp < b.maxHp * 0.5, a = Math.atan2(b.y - p.y, b.x - p.x) + b.orb * 0.9 * dt * (b.enr > 0 ? 1.5 : 1);
-        const orbR = Math.max(110, Math.min(230, Math.min(g.vw, g.vh) / 2 - 55));
+        const orbR = Math.max(110, Math.min(230, Math.min(g.vw / 2, g.vh / 2, topRoom()) - 55));
         moveTo(b, p.x + Math.cos(a) * orbR, p.y + Math.sin(a) * orbR, b.spd * 1.6, dt);
         if ((b.a1 -= dt) <= 0) { b.a1 = 7; b.sp = 3.6; }
         if (b.sp > 0) { b.sp -= dt; if ((b.spT -= dt) <= 0) { b.spT = 0.11; b.spA += 0.33; const arms = low ? 3 : 2; for (let i = 0; i < arms; i++) eshot(b.x, b.y, b.spA + i * TAU / arms, 165, 6, 9, COL.S); } }
@@ -426,9 +429,15 @@
     if (b.shield && b.shieldT > 0 && (b.shieldT -= dt) <= 0) b.shield = false;
     if (b.stun > 0) b.stun -= dt;
     else {
-      /* a boss never fights from off-screen: it hurries back into view first */
-      const ox = Math.abs(b.x - g.cam.x) - (g.vw / 2 - b.r * 0.5), oy = Math.abs(b.y - g.cam.y) - (g.vh / 2 - b.r * 0.5);
-      if (ox > 0 || oy > 0) { if (b.st === 'aim' || b.st === 'dash') { b.st = 'walk'; b.cd = 1.2; } moveTo(b, p.x, p.y, Math.max(b.spd * 1.5, 240) + Math.max(ox, oy) * 2, dt); }
+      /* a boss never fights from off-screen or from behind the HUD: it hurries back into view first. Where there is too
+         little room above the hero for a fair fight (a phone held sideways) it comes round to the side instead. */
+      const room = topRoom(), by = b.y - g.cam.y, tight = room - b.r * 0.85 < 120;
+      const ox = Math.abs(b.x - g.cam.x) - (g.vw / 2 - b.r * 0.5), oy = by < 0 ? -by - (room - b.r * (tight ? 0.4 : 0.85)) : by - (g.vh / 2 - b.r * 0.5);
+      if (ox > 0 || oy > 0) {
+        if (b.st === 'aim' || b.st === 'dash') { b.st = 'walk'; b.cd = 1.2; }
+        const round = tight && by < 0 && oy > 0 && ox <= 0, tx = round ? p.x + (b.x >= p.x ? 1 : -1) * Math.min(g.vw / 2 - b.r, 260) : p.x;
+        moveTo(b, tx, p.y, Math.max(b.spd * 1.5, 240) + Math.max(ox, oy) * 2, dt);
+      }
       else b.def.update(b, dt, p);
     }
     const rr = p.r + b.r - 8, dx = p.x - b.x, dy = p.y - b.y; if (dx * dx + dy * dy < rr * rr) hitPlayer(b.dmg * (b.st === 'dash' ? 1.15 : 1));
@@ -657,14 +666,18 @@
     const p = g.player; begin();
     while (p.revives > 0) {
       let ok = false; p.revives--;
-      if (DBG.auto != null) ok = Math.random() < Math.pow(simAcc(), 3);
+      if (DBG.auto != null) { ok = Math.random() < Math.pow(simAcc(), 3); if (ok) g.correct += 3; else g.wrong++; }
       else if (window.Quiz && Quiz.reviveGauntlet) {
         const go = await confirmBox('YOU ARE DOWN!', 'Last Stand: answer 3 questions in a row and you get back up with half your health.' + (p.revives > 0 ? ' You have ' + (p.revives + 1) + ' tries.' : ''), 'Take the Last Stand', 'End the run');
         if (!go) break;
         try { ok = await Quiz.reviveGauntlet(3); } catch (e) {}
+        /* Last Stand answers count in the run's tally too (the results screen lists them among the misses) */
+        const gt = Quiz.gauntletTally ? Quiz.gauntletTally() : { right: ok ? 3 : 0, wrong: ok ? 0 : 1 };
+        g.correct += gt.right; g.wrong += gt.wrong;
       } else break;
+      if (!ok) g.streak = 0;
       if (ok) {
-        p.hp = Math.round(p.maxHp * 0.5); g.revived = true; g.correct += 3; g.streak += 3; if (g.streak > g.bestStreak) g.bestStreak = g.streak;
+        p.hp = Math.round(p.maxHp * 0.5); g.revived = true; g.streak += 3; if (g.streak > g.bestStreak) g.bestStreak = g.streak;
         const acc = g.dmgAcc, tot = g.dmgTotal; blast(p.x, p.y, 280, 500); g.dmgAcc = acc; g.dmgTotal = tot;
         fx('revive', p.x, p.y, { r: 280 }); g.ebullets.length = 0; sfx('revive'); banner('BACK IN THE FIGHT', 'Knowing your facts just saved you.', COL.good, '+', 2400); end(); p.iframes = 3; return;
       }

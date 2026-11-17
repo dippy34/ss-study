@@ -725,7 +725,7 @@
   /* --------------------------------------------------------------- SHOP */
   function showShop(back, keep) {
     const prevBack = back || backFn || showTitle;
-    const grid = U.el('div', { class: 'mt-shopgrid' });
+    const grid = U.el('div', { class: 'mt-shopgrid' }); let boughtAt = 0;
     function card(t, popped) {
       const l = U.clamp(n0(M.up[t.id]) | 0, 0, t.max), maxed = l >= t.max, cost = maxed ? 0 : t.costs[l], can = M.coins >= cost;
       const pips = U.el('div', { class: 'mt-pips', role: 'img', 'aria-label': 'Level ' + l + ' of ' + t.max });
@@ -733,8 +733,9 @@
       const el = U.el('article', { class: 'mt-card mt-up' + (maxed ? ' is-max' : '') + (popped ? ' mt-pop' : '') });
       const action = maxed ? U.el('div', { class: 'mt-state sel' }, ico('check', 16), U.el('span', { text: 'Max' }))
         : btn([U.el('span', { class: 'bl', text: 'Buy' }), coinTag(cost)], 'mt-buy ' + (can ? 'primary' : 'mt-cant'), () => {
+          if (performance.now() - boughtAt < 400) return;   /* the new Buy button lands under the same finger: a double-tap buys once */
           if (M.coins < cost) { sfx('error'); shake(el); toast('You need ' + fmt(cost - M.coins) + ' more coins.', { kind: 'bad', ms: 1600 }); return; }
-          M.coins -= cost; M.up[t.id] = l + 1; Save.commit(); sfx('buy');
+          M.coins -= cost; M.up[t.id] = l + 1; Save.commit(); sfx('buy'); boughtAt = performance.now();
           checkAll(false);
           render(t.id); refreshWallets();
         }, { dataset: { quiet: '1', up: t.id }, 'aria-label': 'Buy ' + t.name + ' level ' + (l + 1) + ' for ' + cost + ' coins' });
@@ -879,7 +880,7 @@
     const readyBox = U.el('section', { class: 'paper mt-res-ready' },
       U.el('div', { class: 'mt-ready-head' },
         U.el('div', { class: 'grow' }, U.el('div', { class: 'mt-ready-title', text: 'Quiz Readiness' }),
-          U.el('div', { class: 'mt-ready-sub', text: delta > 0 ? 'Up ' + delta + ' points this run. Keep going!' : x.readyAfter >= 100 ? 'Every fact mastered. You are ready!' : 'Answer more questions right to push this up.' })),
+          U.el('div', { class: 'mt-ready-sub', text: delta > 0 ? 'Up ' + delta + (delta === 1 ? ' point' : ' points') + ' this run. Keep going!' : x.readyAfter >= 100 ? 'Every fact mastered. You are ready!' : 'Answer more questions right to push this up.' })),
         readyPct),
       bar(x.readyAfter, 'mt-bar-big mt-shine', x.readyBefore));
     /* one quiet row: what he got wrong in this run, opened as a sheet */

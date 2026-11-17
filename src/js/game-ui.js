@@ -208,7 +208,7 @@
   /* short announcement card under the HUD. big = one glyph (act letter, ⚡, ✓, ★, !, +). A new card replaces the old. */
   function banner(title, sub, col, big, ms) {
     const b = H.card; hideCard();
-    if (!title && !sub) return;
+    if (!title && !sub) { hideIntro(); return; }   /* clearing the stage (a question is opening): the boss band goes too */
     b.style.setProperty('--bc', col || PK.COL.brass); b.innerHTML = '';
     if (big) b.appendChild(medal(big, lg ? 62 : 52));
     b.appendChild(U.el('div', { class: 'hc-txt' }, U.el('div', { class: 'hc-t display', text: title || '' }), sub ? U.el('div', { class: 'hc-s', text: sub }) : null));
@@ -305,7 +305,8 @@
     return new Promise((resolve) => {
       const box = U.el('div', { class: 'modal panel pop-in pk-box', role: 'alertdialog', 'aria-modal': 'true', 'aria-label': title || '' });
       const veil = U.el('div', { class: 'veil pk-confirm' }, box), rec = mount(veil);
-      let fin = false; const done = (v) => { if (fin) return; fin = true; sfx('click'); unmount(rec); resolve(v); };
+      /* the box can open under a thumb that was steering: taps in its first moments do not count */
+      const born = performance.now(); let fin = false; const done = (v) => { if (fin || performance.now() - born < 450) return; fin = true; sfx('click'); unmount(rec); resolve(v); };
       const yesB = U.el('button', { class: 'btn primary big', type: 'button', text: yes || 'OK', onclick: () => done(true) });
       box.append(U.el('h2', { class: 'display pk-h', text: title || '' }), body ? U.el('p', { class: 'pk-p', text: body }) : null,
         U.el('div', { class: 'col pk-actions' }, yesB, no ? U.el('button', { class: 'btn ghost', type: 'button', text: no, onclick: () => done(false) }) : null));

@@ -39,8 +39,11 @@ BOOT = r"""
     step('fonts', function () {
       var web = function () { if (document.getElementById('pk-webfonts')) return; var l = document.createElement('link'); l.id = 'pk-webfonts'; l.rel = 'stylesheet'; l.href = '__GOOGLE_FONTS__'; document.head.appendChild(l); };
       if (!document.fonts || !document.fonts.load) return;
-      Promise.all(['400 16px "Alfa Slab One"', '800 16px "Nunito"', '400 16px "Special Elite"'].map(function (f) { return document.fonts.load(f); }))
-        .then(function (r) { if (r.some(function (a) { return !a || !a.length; })) web(); }, web);
+      var need = ['400 16px "Alfa Slab One"', '800 16px "Nunito"', '400 16px "Special Elite"'];
+      var bad = function () { try { return Array.from(document.fonts).some(function (f) { return f.status === 'error'; }) || need.some(function (f) { return !document.fonts.check(f); }); } catch (e) { return true; } };
+      var verdict = function () { if (bad()) web(); };
+      Promise.all(need.map(function (f) { return document.fonts.load(f); })).then(verdict, web);
+      setTimeout(verdict, 3000);   /* belt and braces: whatever the browser did with the embedded faces, check once more */
     });
     step('icon', function () { if (window.PK && PK.iconURL) { var l = document.createElement('link'); l.rel = 'icon'; l.href = PK.iconURL('keg', 64); document.head.appendChild(l); } });
   }

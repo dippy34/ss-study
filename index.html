@@ -556,8 +556,8 @@ html{box-sizing:border-box}
 .bz-head{display:flex;flex-direction:column;gap:5px}
 .bz-top{display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:20px}
 .bz-eyebrow{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
-.bz-pips{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
-.bz-pips i{width:18px;height:8px;border-radius:4px;background:var(--paper-shade);transition:background .15s,transform .15s}
+.bz-pips{display:flex;gap:5px;flex-wrap:nowrap;justify-content:flex-end;min-width:0;flex:0 1 auto}
+.bz-pips i{flex:0 1 18px;min-width:8px;width:18px;height:8px;border-radius:4px;background:var(--paper-shade);transition:background .15s,transform .15s}
 .bz-pips i.cur{background:var(--brass);transform:scaleY(1.3)}
 .bz-pips i.on{background:var(--brass-line)}
 .bz-pips i.ok{background:var(--good-ink)}
@@ -2391,7 +2391,7 @@ html{box-sizing:border-box}
       example: 'Slavic nationalists in Serbia wanted freedom from Austria-Hungary, leading Gavrilo Princip to assassinate Archduke Franz Ferdinand.',
       clue: "extreme pride or devotion to one's country",
       connect: 'Intense national pride made countries unwilling to back down from conflicts, while ethnic groups living inside empires (such as Serbs in Austria-Hungary) were willing to use violence to win independence.',
-      connectShort: 'National pride made countries unwilling to back down, and ethnic groups inside empires were willing to use violence to win independence.' },
+      connectShort: 'Intense pride made countries unwilling to back down, and ethnic groups inside empires were willing to use violence to win independence.' },
     { id: 'isolationism', name: 'Isolationism', letter: '', cause: false, key: 'X',
       def: "A policy of staying completely out of other countries' conflicts, alliances, and political affairs.",
       short: "Staying completely out of other countries' conflicts, alliances, and political affairs",
@@ -2458,7 +2458,7 @@ html{box-sizing:border-box}
       { answer: 'Austria-Hungary', options: ['Austria-Hungary', 'Germany', 'Serbia', 'Russia'], fact: 'spark:heir' },
       { answer: '1914', options: ['1914', '1915', '1917', '1900'], fact: 'spark:date' },
       { answer: 'Sarajevo', options: ['Sarajevo', 'Berlin', 'Paris', 'London'], fact: 'spark:city' },
-      { answer: 'Gavrilo Princip', options: ['Gavrilo Princip', 'Franz Ferdinand', 'Dreadnought', 'Bulgaria'], fact: 'spark:assassin' },
+      { answer: 'Gavrilo Princip', options: ['Gavrilo Princip', 'Kaiser Wilhelm II', 'Tsar Nicholas II', 'Otto von Bismarck'], fact: 'spark:assassin' },
       { answer: 'Serbia', options: ['Serbia', 'Russia', 'Germany', 'Bulgaria'], fact: 'spark:serbia' },
       { answer: 'spark', options: ['spark', 'powder keg', 'alliance', 'colony'], fact: 'spark:spark' },
     ],
@@ -2560,20 +2560,20 @@ html{box-sizing:border-box}
     ['alliances', 'connect:A', 'Countries promised to defend each other, so a small disagreement could drag every major nation into war.'],
     ['imperialism', 'ex:imperialism', 'European powers competed fiercely to colonize Africa and Asia.'],
     ['imperialism', 'ex:imperialism', 'The "Scramble for Africa" created jealousy and distrust.'],
-    ['nationalism', 'ex:nationalism', 'Slavic nationalists in Serbia wanted freedom from Austria-Hungary.'],
+    ['nationalism', 'ex:nationalism', 'Slavs in Serbia, loyal to their own people, wanted freedom from Austria-Hungary.'],
     ['nationalism', 'connect:N', 'Serbs living inside Austria-Hungary were willing to use violence to win independence.'],
-    ['nationalism', 'connect:N', 'Intense national pride made countries unwilling to back down from conflicts.'],
+    ['nationalism', 'connect:N', 'Intense pride in their own country made nations unwilling to back down from conflicts.'],
   ].forEach((e) => {
     const t = T[e[0]];
     MC(e[1], 'Which M.A.I.N. cause does this show? "' + e[2] + '"', [t.name].concat(causeNames.filter((n) => n !== t.name)),
       t.name + ' — ' + (e[1].indexOf('connect') === 0 ? t.connectShort : t.example));
   });
-  MC('ex:militarism', 'Before 1914, what did the major European powers do to their armies?', ['Doubled them', 'Cut them in half', 'Sent them all to Africa', 'Got rid of them'], 'Militarism: major European powers doubled their armies before 1914.');
+  MC('ex:militarism', 'Before 1914, what did the major European powers do to their armies?', ['Doubled them', 'Tripled them', 'Kept them the same size', 'Cut them in half'], 'Militarism: major European powers doubled their armies before 1914.');
   MC('ex:militarism', 'Which is a WWI example of militarism?', ['Germany and Great Britain racing to build the biggest battleships', 'The United States staying neutral in 1914', 'Serbs wanting freedom from Austria-Hungary', 'Europeans competing for colonies in Africa'], 'Militarism: ' + T.militarism.example);
   MC('ex:alliances', 'Europe split into two rival teams. What were they called?', ['The Allied Powers and the Central Powers', 'The Northern Powers and the Southern Powers', 'The Colonial Powers and the Neutral Powers', 'The Naval Powers and the Army Powers'], 'Alliances: ' + T.alliances.example);
   MC('ex:alliances', 'Which is a WWI example of alliances?', ['Europe splitting into the Allied Powers and the Central Powers', 'The "Scramble for Africa"', 'Germany building Dreadnoughts', 'The 1917 Russian Revolution'], 'Alliances: ' + T.alliances.example);
   MC('ex:imperialism', 'Which is a WWI example of imperialism?', ['European powers competing to colonize Africa and Asia', 'Countries promising to defend each other if attacked', 'Armies doubling in size before 1914', 'Gavrilo Princip assassinating the Archduke'], 'Imperialism: ' + T.imperialism.example);
-  MC('ex:imperialism', 'The race to grab colonies in Africa was called the…', ['Scramble for Africa', 'Powder Keg', 'Naval Race', 'Chain Reaction'], 'Imperialism: ' + T.imperialism.example);
+  MC('ex:imperialism', 'European powers raced fiercely to grab colonies. That race was called the…', ['Scramble for Africa', 'Naval Arms Race', 'Powder Keg', 'Chain Reaction'], 'Imperialism: ' + T.imperialism.example);
   MC('ex:nationalism', 'Which M.A.I.N. cause best explains why Gavrilo Princip assassinated the Archduke?', ['Nationalism', 'Militarism', 'Imperialism', 'Alliances'], 'Nationalism: ' + T.nationalism.example);
   MC('ex:nationalism', 'What did Slavic nationalists in Serbia want?', ['Freedom from Austria-Hungary', 'More colonies in Africa', 'The biggest navy in the world', 'To stay neutral like the United States'], 'Nationalism: ' + T.nationalism.example);
   MC('ex:isolationism', "Which term describes the United States' position when the war began in 1914?", ['Isolationism', 'Imperialism', 'Militarism', 'Communism'], T.isolationism.note);
@@ -2611,7 +2611,7 @@ html{box-sizing:border-box}
     FIXED('side:' + c, q, sideChoices, sideIdx[s], sideWhy(c));
     if (s !== 'neutral') {
       const subj = (c === 'Ottoman Empire' ? 'The ' : '') + c;
-      TF('side:' + c, subj + ' was one of the Central Powers.', s === 'central', sideWhy(c));
+      TF('side:' + c, c === 'Italy' ? 'After switching sides in 1915, Italy fought alongside the Central Powers.' : subj + ' was one of the Central Powers.', s === 'central', sideWhy(c));
       TF('side:' + c, subj + ' was one of the Allied Powers.', s === 'allied', sideWhy(c));
     }
   });
@@ -2635,8 +2635,9 @@ html{box-sizing:border-box}
   MC('side:United States', 'Why is the USA left off the list of Allied Powers?', ['It was neutral when the war began', 'It was one of the Central Powers', 'It switched sides in 1915', 'It was a colony in Africa'], sideWhy('United States'));
   TF('side:United States', 'The United States was one of the Allied Powers when the war began in 1914.', false, sideWhy('United States'));
   MC('sides:mnemonic', '"Bears Ate Green Oranges" helps you remember the…', ['four Central Powers', 'Allied Powers', 'four M.A.I.N. causes', 'steps of the chain reaction'], 'Bears Ate Green Oranges = Bulgaria, Austria-Hungary, Germany, Ottoman Empire — the four Central Powers.');
-  [['Bears', 'Bulgaria', ['Belgium', 'Great Britain', 'Russia']], ['Ate', 'Austria-Hungary', ['Africa', 'the Allied Powers', 'Serbia']], ['Green', 'Germany', ['Great Britain', 'Gavrilo Princip', 'France']], ['Oranges', 'Ottoman Empire', ['Russia', 'Italy', 'Japan']]]
+  [['Bears', 'Bulgaria', ['Belgium', 'Great Britain', 'Russia']], ['Ate', 'Austria-Hungary', ['Africa', 'the Allied Powers', 'Serbia']], ['Green', 'Germany', ['Great Britain', 'Gavrilo Princip', 'France']]]
     .forEach((m) => MC('sides:mnemonic', 'In "Bears Ate Green Oranges," what does "' + m[0] + '" stand for?', [m[1]].concat(m[2]), 'Bears Ate Green Oranges = Bulgaria, Austria-Hungary, Germany, Ottoman Empire — the four Central Powers.'));
+  MC('sides:mnemonic', 'Which of these is NOT one of the countries in "Bears Ate Green Oranges"?', ['Great Britain', 'Germany', 'Bulgaria', 'Austria-Hungary'], 'Bears Ate Green Oranges = Bulgaria, Austria-Hungary, Germany, Ottoman Empire — the four Central Powers. Great Britain was an Allied Power.');
   const italyWhy = 'Italy switched sides to join the Allies in 1915.';
   MC('sides:italy1915', 'What did Italy do in 1915?', ['Switched sides to join the Allies', 'Switched sides to join the Central Powers', 'Declared itself neutral for good', 'Invaded Belgium'], italyWhy);
   MC('sides:italy1915', 'In what year did Italy switch sides to join the Allies?', ['1915', '1914', '1917', '1900'], italyWhy);
@@ -2656,11 +2657,11 @@ html{box-sizing:border-box}
   MC('imp:resources', 'Which is something countries hoped to GET from their colonies?', ['Raw materials like rubber, oil, gold, diamonds, and cotton', 'A promise to stay neutral', 'Smaller armies and navies', 'Fewer places to sell goods'], resWhy);
   MC('imp:resources', 'Rubber, oil, gold, diamonds, and cotton are all examples of…', ['raw materials from colonies', 'manufactured goods', 'alliances', 'Dreadnoughts'], resWhy);
   MC('imp:resources', 'Which group lists natural resources countries wanted from colonies?', ['Rubber, oil, gold, diamonds', 'Battleships, armies, war plans', 'Treaties, promises, partnerships', 'Flags, pride, loyalty'], resWhy);
-  MC('imp:benefits', 'Besides raw materials, colonies gave a country new ______ to sell its manufactured goods.', ['markets', 'alliances', 'navies', 'archdukes'], benWhy);
+  MC('imp:benefits', 'Besides raw materials, colonies gave a country new ______ to sell its manufactured goods.', ['markets', 'factories', 'alliances', 'navies'], benWhy);
   MC('imp:benefits', 'Which was NOT something a country hoped to gain from colonies?', ['Staying out of world affairs', 'Raw materials and natural resources', 'New markets to sell manufactured goods', 'Global power and prestige'], benWhy);
   MC('imp:benefits', 'Why did European countries want colonies?', ['For raw materials, new markets, wealth, land, and global power', 'To stay out of other countries\' conflicts', 'To share wealth equally among citizens', 'To shrink their armies'], benWhy);
   MC('imp:suspicion', 'How did competing for colonies make European countries more suspicious of each other?', ['They wanted the same land and resources, and feared rivals would grow richer and stronger', 'They agreed to share every colony equally', 'They stopped building armies and navies', 'They all joined the same alliance'], compete.suspicion);
-  MC('imp:suspicion', 'Wanting the same land and resources led to border disputes, near-clashes, and feelings of…', ['jealousy and distrust', 'friendship and trust', 'neutrality and calm', 'boredom'], compete.suspicion);
+  MC('imp:suspicion', 'Wanting the same land and resources led to border disputes, near-clashes, and feelings of…', ['jealousy and distrust', 'pride and loyalty', 'safety and security', 'neutrality and calm'], compete.suspicion);
   MC('imp:suspicion', 'What did each country worry about as its rivals grabbed colonies?', ['That rivals would grow richer and stronger', 'That rivals would become neutral', 'That rivals would give up their navies', 'That rivals would run out of colonies to sell'], compete.suspicion);
   MC('mil:best-navy', "Which country had the world's best navy before WWI?", ['Great Britain', 'Germany', 'Russia', 'Austria-Hungary'], "Great Britain had the world's best navy; Germany tried to build a rival navy to match it.");
   TF('mil:best-navy', "Germany had the world's best navy before WWI.", false, "Great Britain had the world's best navy; Germany tried to build a rival navy to match it.");
@@ -2670,7 +2671,7 @@ html{box-sizing:border-box}
   MC('mil:rival-navy', 'The naval arms race was between which two countries?', ['Germany and Great Britain', 'France and Russia', 'Serbia and Austria-Hungary', 'Italy and Bulgaria'], 'Germany and Great Britain competed in a naval arms race to build the biggest battleships.');
   MC('mil:less-safe', 'Why did the naval race make both countries feel LESS safe?', ['Each time Germany built warships, Britain saw a threat and built even more, so both feared a surprise attack', 'Both countries ran out of sailors', 'The ships were too slow to be useful', 'They agreed to share one navy'], compete.lessSafe);
   MC('mil:less-safe', 'When Germany built new warships, how did Great Britain respond?', ['It built even more ships', 'It gave up its navy', 'It joined the Central Powers', 'It became neutral'], compete.lessSafe);
-  MC('mil:less-safe', 'In the naval race, Dreadnoughts were a kind of…', ['warship', 'alliance', 'colony', 'army plan'], compete.lessSafe);
+  MC('mil:less-safe', 'What were Dreadnoughts?', ['Powerful new warships', 'Secret defensive alliances', 'Colonies in Africa', 'Nationalist groups in Serbia'], compete.lessSafe);
   TF('mil:less-safe', 'The naval race made Great Britain and Germany feel safer.', false, compete.lessSafe);
   MC('mil:less-safe', 'The constant naval buildup made both nations fear a ______ and prepare for war.', ['surprise attack', 'peace treaty', 'new colony', 'revolution'], compete.lessSafe);
   terms.filter((t) => t.cause).forEach((t) => {
@@ -2680,7 +2681,7 @@ html{box-sizing:border-box}
   });
   MC('connect:M', 'Because countries were already armed and ready to fight, leaders were quicker to choose…', ['war instead of peaceful compromise', 'peace instead of war', 'neutrality', 'new colonies'], 'Militarism: ' + T.militarism.connect);
   MC('connect:A', 'Europe was divided into two armed, rival teams. Why was that dangerous?', ['Even a small disagreement could drag every major nation into a massive war', 'No country had any friends', 'Nobody had an army', 'It kept every conflict local'], 'Alliances: ' + T.alliances.connect);
-  MC('connect:I', 'Competition for colonies made European powers view each other as…', ['enemies long before 1914', 'partners and friends', 'neutral neighbors', 'one big team'], 'Imperialism: ' + T.imperialism.connect);
+  MC('connect:I', 'Competition for colonies made European powers view each other as…', ['enemies long before 1914', 'allies who must defend each other', 'neutral countries', 'future colonies'], 'Imperialism: ' + T.imperialism.connect);
   MC('connect:N', 'What were some ethnic groups inside empires (such as Serbs in Austria-Hungary) willing to do?', ['Use violence to win independence', 'Give up and stay quiet', 'Build the biggest navy', 'Colonize Africa'], 'Nationalism: ' + T.nationalism.connect);
 
   /* -- the spark -- */
@@ -2688,13 +2689,13 @@ html{box-sizing:border-box}
   MC('spark:keg', 'In the powder keg picture, what "lit the fuse"?', ['The assassination of Archduke Franz Ferdinand', 'The Scramble for Africa', 'The naval arms race', 'The United States staying neutral'], kegLine);
   MC('spark:keg', 'If the assassination was the spark, what was the powder keg?', ['The M.A.I.N. causes building up pressure', 'The city of Sarajevo', 'The United States', 'The Russian Revolution'], kegLine);
   MC('spark:heir', 'Archduke Franz Ferdinand was heir to the throne of…', ['Austria-Hungary', 'Germany', 'Serbia', 'Russia'], storyLine);
-  MC('spark:heir', 'Who was the heir to the throne of Austria-Hungary?', ['Archduke Franz Ferdinand', 'Gavrilo Princip', 'A Serbian nationalist', 'A British admiral'], storyLine);
+  MC('spark:heir', 'Who was the heir to the throne of Austria-Hungary?', ['Archduke Franz Ferdinand', 'Gavrilo Princip', 'Kaiser Wilhelm II', 'Tsar Nicholas II'], storyLine);
   MC('spark:date', 'On what date was Archduke Franz Ferdinand assassinated?', ['June 28, 1914', 'June 28, 1917', 'July 4, 1914', 'June 28, 1915'], storyLine);
   MC('spark:date', 'In what year was the Archduke assassinated?', ['1914', '1915', '1917', '1900'], storyLine);
   TF('spark:date', 'Archduke Franz Ferdinand was assassinated in 1917.', false, storyLine);
   MC('spark:city', 'In which city was the Archduke assassinated?', ['Sarajevo', 'Berlin', 'Paris', 'London'], storyLine);
   MC('spark:city', 'What happened in Sarajevo on June 28, 1914?', ['Archduke Franz Ferdinand was assassinated', 'Germany invaded Belgium', 'Italy switched sides', 'The Russian Revolution began'], storyLine);
-  MC('spark:assassin', 'Who assassinated Archduke Franz Ferdinand?', ['Gavrilo Princip', 'A German general', 'A Russian soldier', 'A British sailor'], storyLine);
+  MC('spark:assassin', 'Who assassinated Archduke Franz Ferdinand?', ['Gavrilo Princip', 'Kaiser Wilhelm II', 'Tsar Nicholas II', 'Otto von Bismarck'], storyLine);
   MC('spark:assassin', 'Who was Gavrilo Princip?', ['The assassin of Archduke Franz Ferdinand', 'The heir to the throne of Austria-Hungary', 'The leader of Germany\'s navy', 'A neutral American'], storyLine);
   MC('spark:serbia', 'Gavrilo Princip was part of a nationalist group connected to which country?', ['Serbia', 'Russia', 'Germany', 'Bulgaria'], storyLine);
   TF('spark:serbia', "Gavrilo Princip's nationalist group was connected to Germany.", false, storyLine);
@@ -3118,11 +3119,13 @@ html{box-sizing:border-box}
     });
   }
 
+  let gauntlet = { right: 0, wrong: 0 };
   async function reviveGauntlet(n) {
-    n = n || 3;
+    n = n || 3; gauntlet = { right: 0, wrong: 0 };
     for (let i = 1; i <= n; i++) {
       const r = await ask({ context: 'revive', header: 'LAST STAND', step: [i, n] });
-      if (!r || !r.correct) return false;
+      if (!r || !r.correct) { gauntlet.wrong++; return false; }
+      gauntlet.right++;
     }
     return true;
   }
@@ -3223,7 +3226,7 @@ html{box-sizing:border-box}
       const t0 = performance.now(); let done = false;
       const fin = (v) => { if (done || performance.now() - t0 < 400) return; done = true; window.removeEventListener('keydown', onKey, true); sfx('click'); leave(veil, () => { veil.remove(); openCount--; resolve(v); }); };
       const onKey = (e) => {
-        if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') { e.preventDefault(); e.stopPropagation(); if (!e.repeat) fin(false); }
+        if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') { e.preventDefault(); e.stopPropagation(); if (!e.repeat) fin(e.key !== 'Escape' && document.activeElement === again); }
       };
       again.addEventListener('click', () => fin(true)); doneBtn.addEventListener('click', () => fin(false));
       window.addEventListener('keydown', onKey, true);
@@ -3373,7 +3376,7 @@ html{box-sizing:border-box}
         const items = list.map((c) => { const s = STUDY.sideOf(c); return { c, answer: idx[s], fact: 'side:' + c, fix: b(c) + ' → ' + U.esc(STUDY.sideLabel[s]) + (c === 'Italy' ? ' (switched sides to join the Allies in 1915)' : s === 'neutral' ? ' — never list the USA as an Allied Power' : '') }; });
         const r = await classify(fr, T, items, {
           options: [{ text: 'ALLIED POWERS', cls: 'side-allied' }, { text: 'CENTRAL POWERS', cls: 'side-central' }, { text: 'NEUTRAL IN 1914', cls: 'side-neutral' }],
-          card: (it) => bigCard('Which side?', it.c, 'big'),
+          card: (it) => bigCard('Which side?', it.c === 'Italy' ? 'Italy (from 1915)' : it.c, 'big'),   /* Italy changed sides, so the card says when */
         });
         r.note = 'Central Powers = <b>B</b>ears <b>A</b>te <b>G</b>reen <b>O</b>ranges: Bulgaria, Austria-Hungary, Germany, Ottoman Empire.';
         return r;
@@ -3605,19 +3608,19 @@ html{box-sizing:border-box}
   const only1914 = (v) => { const m = String(v).match(/\d{4,}/g) || []; return m.length > 0 && m.every((y) => y === '1914'); };
   const AL = {
     'Germany': ['germany', 'germanempire', 'deutschland'],
-    'Austria-Hungary': ['austriahungary', 'austria', 'austrohungary', 'austrohungarianempire', 'austriahungarianempire', 'austrohungarian', 'austriahungaryempire', 'austriaandhungary'],
-    'Ottoman Empire': ['ottomanempire', 'ottoman', 'ottomans', 'turkey', 'ottomanturkey', 'ottomanturks'],
+    'Austria-Hungary': ['austriahungary', 'austrohungary', 'austrohungarianempire', 'austriahungarianempire', 'austrohungarian', 'austriahungaryempire', 'austriaandhungary'],
+    'Ottoman Empire': ['ottomanempire', 'ottoman', 'ottomans', 'ottomanturks'],
     'Bulgaria': ['bulgaria'],
-    'Great Britain': ['greatbritain', 'britain', 'uk', 'unitedkingdom', 'england', 'gb', 'britishempire'],
+    'Great Britain': ['greatbritain', 'britain', 'uk', 'unitedkingdom', 'gb', 'britishempire'],
     'France': ['france'], 'Russia': ['russia', 'russianempire'], 'Italy': ['italy'], 'Serbia': ['serbia'], 'Belgium': ['belgium'], 'Japan': ['japan'],
-    'Militarism': ['militarism'], 'Alliances': ['alliances', 'alliance'], 'Imperialism': ['imperialism'], 'Nationalism': ['nationalism'],
+    'Militarism': ['militarism'], 'Alliances': ['alliances', 'alliance', 'alliancesystem', 'alliancesystems', 'systemofalliances'], 'Imperialism': ['imperialism'], 'Nationalism': ['nationalism'],
   };
   const G = (names) => names.map((n) => ({ name: n, aliases: AL[n] || [norm(n)] }));
   const TYPED = [
     { id: 'central', must: true, fact: 'sides:central4', topic: 'sides', q: 'Type the four Central Powers.', slots: 4, need: 4, groups: G(STUDY.central), answerText: 'Germany, Austria-Hungary, Ottoman Empire, Bulgaria', explain: 'Bears Ate Green Oranges: Bulgaria, Austria-Hungary, Germany, Ottoman Empire.' },
     { id: 'allied', fact: 'sides:allied4', topic: 'sides', q: 'Name four Allied Powers.', slots: 4, need: 4, groups: G(STUDY.allied), answerText: 'Any four of: Great Britain, France, Russia, Italy, Serbia (also Belgium or Japan)', explain: STUDY.lines.allied5 || '' },
     { id: 'main', fact: 'cause:main', topic: 'vocab', q: 'What does M.A.I.N. stand for? Type the four causes.', slots: 4, need: 4, labels: ['M', 'A', 'I', 'N'], groups: G(['Militarism', 'Alliances', 'Imperialism', 'Nationalism']), answerText: 'Militarism, Alliances, Imperialism, Nationalism', explain: STUDY.lines.main || '' },
-    { id: 'assassin', fact: 'spark:assassin', topic: 'spark', q: 'Who assassinated Archduke Franz Ferdinand?', slots: 1, need: 1, groups: [{ name: 'Gavrilo Princip', aliases: ['gavriloprincip', 'princip', 'gavrilo', 'gavriloprinciple', 'principle'] }], answerText: 'Gavrilo Princip', explain: STUDY.lines.story || '' },
+    { id: 'assassin', fact: 'spark:assassin', topic: 'spark', q: 'Who assassinated Archduke Franz Ferdinand?', slots: 1, need: 1, groups: [{ name: 'Gavrilo Princip', aliases: ['gavriloprincip', 'princip', 'gavriloprinciple', 'principle'] }], answerText: 'Gavrilo Princip', explain: STUDY.lines.story || '' },
     { id: 'city', fact: 'spark:city', topic: 'spark', q: 'In which city was the Archduke assassinated?', slots: 1, need: 1, groups: [{ name: 'Sarajevo', aliases: ['sarajevo'] }], answerText: 'Sarajevo', explain: STUDY.lines.story || '' },
     { id: 'year', fact: 'spark:date', topic: 'spark', q: 'In what year was Archduke Franz Ferdinand assassinated?', slots: 1, need: 1, test: only1914, groups: [{ name: '1914', aliases: ['1914', 'june281914'] }], answerText: '1914 (June 28, 1914)', explain: STUDY.lines.story || '' },
     { id: 'heir', fact: 'spark:heir', topic: 'spark', q: 'Archduke Franz Ferdinand was heir to the throne of which empire?', slots: 1, need: 1, groups: G(['Austria-Hungary']), answerText: 'Austria-Hungary', explain: STUDY.lines.story || '' },
@@ -3626,13 +3629,38 @@ html{box-sizing:border-box}
     { id: 'navy', fact: 'mil:best-navy', topic: 'compete', q: "Which country had the world's best navy before WWI?", slots: 1, need: 1, groups: G(['Great Britain']), answerText: 'Great Britain', explain: "Great Britain had the world's best navy; Germany tried to build a rival navy to match it." },
     { id: 'rival', fact: 'mil:rival-navy', topic: 'compete', q: "Which country tried to build a rival navy to match Great Britain's?", slots: 1, need: 1, groups: G(['Germany']), answerText: 'Germany', explain: "Germany tried to build a navy to rival Great Britain's — the naval arms race." },
   ];
+  /* a one-answer box may hold a few extra words ("Sarajevo, Bosnia", "it was Gavrilo Princip"): the answer has to be in
+     there, and no rival answer with it ("Germany or Britain" is a hedge, not an answer) */
+  function looseHit(item, n) {
+    const mine = []; item.groups.forEach((grp) => grp.aliases.forEach((a) => mine.push(a)));
+    if (!mine.some((a) => a.length >= 6 && n.indexOf(a) >= 0)) return false;
+    for (const name in AL) for (const a of AL[name]) {
+      if (a.length >= 5 && mine.indexOf(a) < 0 && n.indexOf(a) >= 0 && !mine.some((m) => m.indexOf(a) >= 0)) return false;
+    }
+    return true;
+  }
+  const SPLIT = /\s*(?:,|;|\/|\n|&|\+|\band\b)\s*/i;
   /* each typed value goes to the CLOSEST answer nobody has claimed yet: exact spellings first, then one slip, then two */
   function gradeTyped(item, values) {
     const raw = (values || []).filter((v) => v != null && String(v).trim());
     if (item.test) { const hit = raw.some((v) => item.test(v)) ? 1 : 0; return { ok: hit >= item.need, got: hit }; }
+    const known = (n) => item.groups.some((grp) => grp.aliases.some((a) => near(n, a) >= 0));
+    if (item.slots === 1) {
+      const v = raw.length ? String(raw[0]) : '', whole = norm(v); if (!whole) return { ok: false, got: 0 };
+      const head = norm(v.split(/[,;(\[\/]|\s[-–—]\s/)[0]);
+      const hit = known(whole) || (head && known(head)) || looseHit(item, whole);
+      return { ok: !!hit, got: hit ? 1 : 0 };
+    }
+    /* several answers in one box ("Germany, Bulgaria and Austria-Hungary") count one by one */
+    const toks = [];
+    raw.forEach((v) => {
+      const whole = norm(v); if (!whole) return;
+      if (known(whole)) { toks.push(whole); return; }
+      const parts = String(v).split(SPLIT).map(norm).filter(Boolean);
+      if (parts.length > 1) parts.forEach((x) => toks.push(x)); else toks.push(whole);
+    });
     const pairs = [];
-    raw.forEach((v, vi) => {
-      const n = norm(v); if (!n) return;
+    toks.forEach((n, vi) => {
       item.groups.forEach((grp, gi) => {
         let best = -1;
         grp.aliases.forEach((a) => { const d = near(n, a); if (d >= 0 && (best < 0 || d < best)) best = d; });
@@ -3642,7 +3670,8 @@ html{box-sizing:border-box}
     pairs.sort((x, y) => x[0] - y[0] || x[1] - y[1] || x[2] - y[2]);
     const usedV = {}, usedG = {}; let got = 0;
     pairs.forEach((x) => { if (usedV[x[1]] || usedG[x[2]]) return; usedV[x[1]] = usedG[x[2]] = true; got++; });
-    return { ok: got >= item.need, got };
+    /* listing extra countries to be safe does not count: no more answers than there are boxes */
+    return { ok: got >= item.need && toks.length <= item.slots, got };
   }
   function buildPractice() {
     const plan = { vocab: 5, sides: 4, compete: 4, spark: 4 };
@@ -3681,14 +3710,14 @@ html{box-sizing:border-box}
 
       function start() {
         if (closed) return;
-        const items = buildPractice(); const answers = []; let i = 0, armed = false;
+        const items = buildPractice(); const answers = []; let i = 0, armed = false, armAt = 0;
         const count = el('div', { class: 'display pt-count num' });
         const fill = el('i');
         /* two taps to quit; the armed label is the same width, so nothing in the header moves */
         const quit = el('button', { class: 'btn small ghost pt-quit', type: 'button', text: 'Quit' });
         quit.addEventListener('click', () => {
-          if (armed) return close();
-          armed = true; quit.textContent = 'Tap again'; quit.classList.add('danger'); quit.setAttribute('aria-label', 'Tap again to quit the practice test');
+          if (armed) { if (performance.now() - armAt < 350) return; return close(); }
+          armed = true; armAt = performance.now(); quit.textContent = 'Tap again'; quit.classList.add('danger'); quit.setAttribute('aria-label', 'Tap again to quit the practice test');
           clearTimeout(armT); armT = setTimeout(() => { armed = false; quit.textContent = 'Quit'; quit.classList.remove('danger'); quit.removeAttribute('aria-label'); }, 2500);
         });
         const slot = el('div', { class: 'pt-slot' });
@@ -3765,7 +3794,7 @@ html{box-sizing:border-box}
         S.practiceCount++; if (pct > S.practiceBest) S.practiceBest = pct; SaveX.commit();
         last = { score, total, pct };
         const grade = pct >= 90 ? 'A' : pct >= 80 ? 'B' : pct >= 70 ? 'C' : pct >= 60 ? 'D' : 'NOT YET';
-        const msg = pct === 100 ? 'Flawless. You are quiz-ready.' : pct >= 90 ? 'Quiz-ready. Fix the last few below and you are golden.' : pct >= 80 ? 'So close. Read the misses below, then go again.' : pct >= 60 ? 'Getting there. Every miss below is a free point tomorrow.' : 'Good start. Read the misses, play a few runs, then try again.';
+        const msg = pct === 100 ? 'Flawless. You are quiz-ready.' : pct >= 90 ? 'Quiz-ready. Fix the last few below and you are golden.' : pct >= 80 ? 'So close. Read the misses below, then go again.' : pct >= 60 ? 'Getting there. Every miss below is a free point on the quiz.' : 'Good start. Read the misses, play a few runs, then try again.';
         sfx(pct >= 80 ? 'victory' : 'levelup');
         const again = el('button', { class: 'btn big', type: 'button', text: 'Try again' });
         const doneBtn = el('button', { class: 'btn primary big', type: 'button', text: 'Done' });
@@ -3801,7 +3830,7 @@ html{box-sizing:border-box}
         setTimeout(() => { fills.forEach((x) => { x[0].style.width = x[1] + '%'; }); }, reduced() ? 0 : 120);
         if (pct === 100) confetti(sheet);
         screen.classList.add('pt-done');   /* a results page plainly continues: no "more below" tag here */
-        screen.scrollTop = 0; cue();
+        screen.scrollTop = 0; cue(); toFocus(screen);   /* keyboard: arrows and Page Down scroll the misses straight away */
       }
       start();
     });
@@ -3917,6 +3946,7 @@ html{box-sizing:border-box}
     init, ask, reviveGauntlet, bonusRound, practiceTest, openCodex, readiness, stats, record,
     drill, weakCount, runReset, runMisses, reviewSheet,
     isOpen: () => openCount > 0,
+    gauntletTally: () => ({ right: gauntlet.right, wrong: gauntlet.wrong }),
     kinds: Object.keys(GAMES),
     _debug: { pickQuestion, gradeTyped, norm, fuzzy, TYPED, weakest },
   };
@@ -4652,7 +4682,7 @@ html{box-sizing:border-box}
   /* --------------------------------------------------------------- SHOP */
   function showShop(back, keep) {
     const prevBack = back || backFn || showTitle;
-    const grid = U.el('div', { class: 'mt-shopgrid' });
+    const grid = U.el('div', { class: 'mt-shopgrid' }); let boughtAt = 0;
     function card(t, popped) {
       const l = U.clamp(n0(M.up[t.id]) | 0, 0, t.max), maxed = l >= t.max, cost = maxed ? 0 : t.costs[l], can = M.coins >= cost;
       const pips = U.el('div', { class: 'mt-pips', role: 'img', 'aria-label': 'Level ' + l + ' of ' + t.max });
@@ -4660,8 +4690,9 @@ html{box-sizing:border-box}
       const el = U.el('article', { class: 'mt-card mt-up' + (maxed ? ' is-max' : '') + (popped ? ' mt-pop' : '') });
       const action = maxed ? U.el('div', { class: 'mt-state sel' }, ico('check', 16), U.el('span', { text: 'Max' }))
         : btn([U.el('span', { class: 'bl', text: 'Buy' }), coinTag(cost)], 'mt-buy ' + (can ? 'primary' : 'mt-cant'), () => {
+          if (performance.now() - boughtAt < 400) return;   /* the new Buy button lands under the same finger: a double-tap buys once */
           if (M.coins < cost) { sfx('error'); shake(el); toast('You need ' + fmt(cost - M.coins) + ' more coins.', { kind: 'bad', ms: 1600 }); return; }
-          M.coins -= cost; M.up[t.id] = l + 1; Save.commit(); sfx('buy');
+          M.coins -= cost; M.up[t.id] = l + 1; Save.commit(); sfx('buy'); boughtAt = performance.now();
           checkAll(false);
           render(t.id); refreshWallets();
         }, { dataset: { quiet: '1', up: t.id }, 'aria-label': 'Buy ' + t.name + ' level ' + (l + 1) + ' for ' + cost + ' coins' });
@@ -4806,7 +4837,7 @@ html{box-sizing:border-box}
     const readyBox = U.el('section', { class: 'paper mt-res-ready' },
       U.el('div', { class: 'mt-ready-head' },
         U.el('div', { class: 'grow' }, U.el('div', { class: 'mt-ready-title', text: 'Quiz Readiness' }),
-          U.el('div', { class: 'mt-ready-sub', text: delta > 0 ? 'Up ' + delta + ' points this run. Keep going!' : x.readyAfter >= 100 ? 'Every fact mastered. You are ready!' : 'Answer more questions right to push this up.' })),
+          U.el('div', { class: 'mt-ready-sub', text: delta > 0 ? 'Up ' + delta + (delta === 1 ? ' point' : ' points') + ' this run. Keep going!' : x.readyAfter >= 100 ? 'Every fact mastered. You are ready!' : 'Answer more questions right to push this up.' })),
         readyPct),
       bar(x.readyAfter, 'mt-bar-big mt-shine', x.readyBefore));
     /* one quiet row: what he got wrong in this run, opened as a sheet */
@@ -9458,7 +9489,7 @@ html{box-sizing:border-box}
   /* short announcement card under the HUD. big = one glyph (act letter, ⚡, ✓, ★, !, +). A new card replaces the old. */
   function banner(title, sub, col, big, ms) {
     const b = H.card; hideCard();
-    if (!title && !sub) return;
+    if (!title && !sub) { hideIntro(); return; }   /* clearing the stage (a question is opening): the boss band goes too */
     b.style.setProperty('--bc', col || PK.COL.brass); b.innerHTML = '';
     if (big) b.appendChild(medal(big, lg ? 62 : 52));
     b.appendChild(U.el('div', { class: 'hc-txt' }, U.el('div', { class: 'hc-t display', text: title || '' }), sub ? U.el('div', { class: 'hc-s', text: sub }) : null));
@@ -9555,7 +9586,8 @@ html{box-sizing:border-box}
     return new Promise((resolve) => {
       const box = U.el('div', { class: 'modal panel pop-in pk-box', role: 'alertdialog', 'aria-modal': 'true', 'aria-label': title || '' });
       const veil = U.el('div', { class: 'veil pk-confirm' }, box), rec = mount(veil);
-      let fin = false; const done = (v) => { if (fin) return; fin = true; sfx('click'); unmount(rec); resolve(v); };
+      /* the box can open under a thumb that was steering: taps in its first moments do not count */
+      const born = performance.now(); let fin = false; const done = (v) => { if (fin || performance.now() - born < 450) return; fin = true; sfx('click'); unmount(rec); resolve(v); };
       const yesB = U.el('button', { class: 'btn primary big', type: 'button', text: yes || 'OK', onclick: () => done(true) });
       box.append(U.el('h2', { class: 'display pk-h', text: title || '' }), body ? U.el('p', { class: 'pk-p', text: body }) : null,
         U.el('div', { class: 'col pk-actions' }, yesB, no ? U.el('button', { class: 'btn ghost', type: 'button', text: no, onclick: () => done(false) }) : null));
@@ -9866,7 +9898,10 @@ html{box-sizing:border-box}
   }
 
   /* ================= enemies ================= */
-  const onScreen = (e, m) => Math.abs(e.x - g.cam.x) < g.vw / 2 - m && Math.abs(e.y - g.cam.y) < g.vh / 2 - m;
+  /* world distance from the middle of the screen up to the bottom edge of the HUD (boss bar included while it shows) */
+  const topRoom = () => (PK.UI && PK.UI.topInset && g.H ? (g.H / 2 - PK.UI.topInset(false)) / (g.scale * (g.zoom || 1)) : g.vh / 2);
+  /* in view AND not tucked behind the HUD strip */
+  const onScreen = (e, m) => { const dy = e.y - g.cam.y; return Math.abs(e.x - g.cam.x) < g.vw / 2 - m && dy < g.vh / 2 - m && dy > m - topRoom(); };
   function edge(m) {
     const hw = g.vw / 2 + m, hh = g.vh / 2 + m, cx = g.cam.x, cy = g.cam.y, per = Math.random() * (hw * 4 + hh * 4);
     if (per < hw * 2) return [cx - hw + per, cy - hh]; if (per < hw * 4) return [cx - hw + (per - hw * 2), cy + hh];
@@ -9918,7 +9953,7 @@ html{box-sizing:border-box}
           break;
         }
         case 'gun': {
-          const R0 = Math.max(110, Math.min(240, Math.min(g.vw, g.vh) / 2 - 36));
+          const R0 = Math.max(110, Math.min(240, Math.min(g.vw / 2, g.vh / 2, topRoom()) - 36));
           if (d < R0 * 0.72) { ux = -ux; uy = -uy; sp *= 0.8; } else if (d < R0) { const nx = -uy; uy = ux; ux = nx; sp *= 0.6; }
           e.cd -= dt; if (e.cd <= 0) { if (onScreen(e, 8)) { e.cd = rnd(2.4, 3.2); eshot(e.x, e.y, Math.atan2(dy, dx), 180, 6, e.dmg); } else e.cd = 0.25; }
           break;
@@ -9944,7 +9979,7 @@ html{box-sizing:border-box}
       init(b) { b.a1 = 2; b.a2 = 5; b.a3 = 7; b.arms = 0; },
       update(b, dt, p) {
         moveTo(b, p.x, p.y, b.spd, dt); const rate = b.enr > 0 ? 1.5 : 1;
-        if ((b.a1 -= dt * rate) <= 0) { b.a1 = 2.4; const n = 3 + b.arms, a0 = ang(b, p); for (let i = 0; i < n; i++) eshot(b.x, b.y, a0 + (i - (n - 1) / 2) * 0.19, 190, 7, 8); sfx('shoot', { pitch: 0.55 }); }
+        if ((b.a1 -= dt * rate) <= 0) { b.a1 = 2.6; const n = 3 + b.arms, a0 = ang(b, p); for (let i = 0; i < n; i++) eshot(b.x, b.y, a0 + (i - (n - 1) / 2) * 0.19, 172, 7, 8); sfx('shoot', { pitch: 0.55 }); }
         if ((b.a2 -= dt * rate) <= 0) { b.a2 = 7.5; for (let i = 0; i < 12; i++) eshot(b.x, b.y, i / 12 * TAU + b.t, 140, 7, 8); sfx('explosion'); }
         if ((b.a3 -= dt) <= 0) { b.a3 = 9; const more = b.arms < 4; b.arms = Math.min(4, b.arms + 1); for (let i = 0; i < 5; i++) spawnNear('recruit', b, 70); text(b.x, b.y - b.r - 24, more ? 'ARMS RACE! +1 GUN' : 'ARMS RACE!', COL.M, 16, 1.4); }
       } },
@@ -9983,7 +10018,7 @@ html{box-sizing:border-box}
       init(b) { b.a1 = 3; b.sp = 0; b.spA = 0; b.spT = 0; b.a2 = 6; b.a3 = 8; b.fuse = 80; b.fuseMax = 80; b.orb = 1; b.blink = 5; },
       update(b, dt, p) {
         const low = b.hp < b.maxHp * 0.5, a = Math.atan2(b.y - p.y, b.x - p.x) + b.orb * 0.9 * dt * (b.enr > 0 ? 1.5 : 1);
-        const orbR = Math.max(110, Math.min(230, Math.min(g.vw, g.vh) / 2 - 55));
+        const orbR = Math.max(110, Math.min(230, Math.min(g.vw / 2, g.vh / 2, topRoom()) - 55));
         moveTo(b, p.x + Math.cos(a) * orbR, p.y + Math.sin(a) * orbR, b.spd * 1.6, dt);
         if ((b.a1 -= dt) <= 0) { b.a1 = 7; b.sp = 3.6; }
         if (b.sp > 0) { b.sp -= dt; if ((b.spT -= dt) <= 0) { b.spT = 0.11; b.spA += 0.33; const arms = low ? 3 : 2; for (let i = 0; i < arms; i++) eshot(b.x, b.y, b.spA + i * TAU / arms, 165, 6, 9, COL.S); } }
@@ -10017,9 +10052,15 @@ html{box-sizing:border-box}
     if (b.shield && b.shieldT > 0 && (b.shieldT -= dt) <= 0) b.shield = false;
     if (b.stun > 0) b.stun -= dt;
     else {
-      /* a boss never fights from off-screen: it hurries back into view first */
-      const ox = Math.abs(b.x - g.cam.x) - (g.vw / 2 - b.r * 0.5), oy = Math.abs(b.y - g.cam.y) - (g.vh / 2 - b.r * 0.5);
-      if (ox > 0 || oy > 0) { if (b.st === 'aim' || b.st === 'dash') { b.st = 'walk'; b.cd = 1.2; } moveTo(b, p.x, p.y, Math.max(b.spd * 1.5, 240) + Math.max(ox, oy) * 2, dt); }
+      /* a boss never fights from off-screen or from behind the HUD: it hurries back into view first. Where there is too
+         little room above the hero for a fair fight (a phone held sideways) it comes round to the side instead. */
+      const room = topRoom(), by = b.y - g.cam.y, tight = room - b.r * 0.85 < 120;
+      const ox = Math.abs(b.x - g.cam.x) - (g.vw / 2 - b.r * 0.5), oy = by < 0 ? -by - (room - b.r * (tight ? 0.4 : 0.85)) : by - (g.vh / 2 - b.r * 0.5);
+      if (ox > 0 || oy > 0) {
+        if (b.st === 'aim' || b.st === 'dash') { b.st = 'walk'; b.cd = 1.2; }
+        const round = tight && by < 0 && oy > 0 && ox <= 0, tx = round ? p.x + (b.x >= p.x ? 1 : -1) * Math.min(g.vw / 2 - b.r, 260) : p.x;
+        moveTo(b, tx, p.y, Math.max(b.spd * 1.5, 240) + Math.max(ox, oy) * 2, dt);
+      }
       else b.def.update(b, dt, p);
     }
     const rr = p.r + b.r - 8, dx = p.x - b.x, dy = p.y - b.y; if (dx * dx + dy * dy < rr * rr) hitPlayer(b.dmg * (b.st === 'dash' ? 1.15 : 1));
@@ -10248,14 +10289,18 @@ html{box-sizing:border-box}
     const p = g.player; begin();
     while (p.revives > 0) {
       let ok = false; p.revives--;
-      if (DBG.auto != null) ok = Math.random() < Math.pow(simAcc(), 3);
+      if (DBG.auto != null) { ok = Math.random() < Math.pow(simAcc(), 3); if (ok) g.correct += 3; else g.wrong++; }
       else if (window.Quiz && Quiz.reviveGauntlet) {
         const go = await confirmBox('YOU ARE DOWN!', 'Last Stand: answer 3 questions in a row and you get back up with half your health.' + (p.revives > 0 ? ' You have ' + (p.revives + 1) + ' tries.' : ''), 'Take the Last Stand', 'End the run');
         if (!go) break;
         try { ok = await Quiz.reviveGauntlet(3); } catch (e) {}
+        /* Last Stand answers count in the run's tally too (the results screen lists them among the misses) */
+        const gt = Quiz.gauntletTally ? Quiz.gauntletTally() : { right: ok ? 3 : 0, wrong: ok ? 0 : 1 };
+        g.correct += gt.right; g.wrong += gt.wrong;
       } else break;
+      if (!ok) g.streak = 0;
       if (ok) {
-        p.hp = Math.round(p.maxHp * 0.5); g.revived = true; g.correct += 3; g.streak += 3; if (g.streak > g.bestStreak) g.bestStreak = g.streak;
+        p.hp = Math.round(p.maxHp * 0.5); g.revived = true; g.streak += 3; if (g.streak > g.bestStreak) g.bestStreak = g.streak;
         const acc = g.dmgAcc, tot = g.dmgTotal; blast(p.x, p.y, 280, 500); g.dmgAcc = acc; g.dmgTotal = tot;
         fx('revive', p.x, p.y, { r: 280 }); g.ebullets.length = 0; sfx('revive'); banner('BACK IN THE FIGHT', 'Knowing your facts just saved you.', COL.good, '+', 2400); end(); p.iframes = 3; return;
       }
@@ -10390,8 +10435,11 @@ html{box-sizing:border-box}
     step('fonts', function () {
       var web = function () { if (document.getElementById('pk-webfonts')) return; var l = document.createElement('link'); l.id = 'pk-webfonts'; l.rel = 'stylesheet'; l.href = 'https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Nunito:wght@400;600;700;800;900&family=Special+Elite&display=swap'; document.head.appendChild(l); };
       if (!document.fonts || !document.fonts.load) return;
-      Promise.all(['400 16px "Alfa Slab One"', '800 16px "Nunito"', '400 16px "Special Elite"'].map(function (f) { return document.fonts.load(f); }))
-        .then(function (r) { if (r.some(function (a) { return !a || !a.length; })) web(); }, web);
+      var need = ['400 16px "Alfa Slab One"', '800 16px "Nunito"', '400 16px "Special Elite"'];
+      var bad = function () { try { return Array.from(document.fonts).some(function (f) { return f.status === 'error'; }) || need.some(function (f) { return !document.fonts.check(f); }); } catch (e) { return true; } };
+      var verdict = function () { if (bad()) web(); };
+      Promise.all(need.map(function (f) { return document.fonts.load(f); })).then(verdict, web);
+      setTimeout(verdict, 3000);   /* belt and braces: whatever the browser did with the embedded faces, check once more */
     });
     step('icon', function () { if (window.PK && PK.iconURL) { var l = document.createElement('link'); l.rel = 'icon'; l.href = PK.iconURL('keg', 64); document.head.appendChild(l); } });
   }

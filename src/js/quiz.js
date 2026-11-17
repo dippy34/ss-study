@@ -376,11 +376,13 @@
     });
   }
 
+  let gauntlet = { right: 0, wrong: 0 };
   async function reviveGauntlet(n) {
-    n = n || 3;
+    n = n || 3; gauntlet = { right: 0, wrong: 0 };
     for (let i = 1; i <= n; i++) {
       const r = await ask({ context: 'revive', header: 'LAST STAND', step: [i, n] });
-      if (!r || !r.correct) return false;
+      if (!r || !r.correct) { gauntlet.wrong++; return false; }
+      gauntlet.right++;
     }
     return true;
   }
@@ -481,7 +483,7 @@
       const t0 = performance.now(); let done = false;
       const fin = (v) => { if (done || performance.now() - t0 < 400) return; done = true; window.removeEventListener('keydown', onKey, true); sfx('click'); leave(veil, () => { veil.remove(); openCount--; resolve(v); }); };
       const onKey = (e) => {
-        if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') { e.preventDefault(); e.stopPropagation(); if (!e.repeat) fin(false); }
+        if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') { e.preventDefault(); e.stopPropagation(); if (!e.repeat) fin(e.key !== 'Escape' && document.activeElement === again); }
       };
       again.addEventListener('click', () => fin(true)); doneBtn.addEventListener('click', () => fin(false));
       window.addEventListener('keydown', onKey, true);
@@ -631,7 +633,7 @@
         const items = list.map((c) => { const s = STUDY.sideOf(c); return { c, answer: idx[s], fact: 'side:' + c, fix: b(c) + ' → ' + U.esc(STUDY.sideLabel[s]) + (c === 'Italy' ? ' (switched sides to join the Allies in 1915)' : s === 'neutral' ? ' — never list the USA as an Allied Power' : '') }; });
         const r = await classify(fr, T, items, {
           options: [{ text: 'ALLIED POWERS', cls: 'side-allied' }, { text: 'CENTRAL POWERS', cls: 'side-central' }, { text: 'NEUTRAL IN 1914', cls: 'side-neutral' }],
-          card: (it) => bigCard('Which side?', it.c, 'big'),
+          card: (it) => bigCard('Which side?', it.c === 'Italy' ? 'Italy (from 1915)' : it.c, 'big'),   /* Italy changed sides, so the card says when */
         });
         r.note = 'Central Powers = <b>B</b>ears <b>A</b>te <b>G</b>reen <b>O</b>ranges: Bulgaria, Austria-Hungary, Germany, Ottoman Empire.';
         return r;
@@ -863,19 +865,19 @@
   const only1914 = (v) => { const m = String(v).match(/\d{4,}/g) || []; return m.length > 0 && m.every((y) => y === '1914'); };
   const AL = {
     'Germany': ['germany', 'germanempire', 'deutschland'],
-    'Austria-Hungary': ['austriahungary', 'austria', 'austrohungary', 'austrohungarianempire', 'austriahungarianempire', 'austrohungarian', 'austriahungaryempire', 'austriaandhungary'],
-    'Ottoman Empire': ['ottomanempire', 'ottoman', 'ottomans', 'turkey', 'ottomanturkey', 'ottomanturks'],
+    'Austria-Hungary': ['austriahungary', 'austrohungary', 'austrohungarianempire', 'austriahungarianempire', 'austrohungarian', 'austriahungaryempire', 'austriaandhungary'],
+    'Ottoman Empire': ['ottomanempire', 'ottoman', 'ottomans', 'ottomanturks'],
     'Bulgaria': ['bulgaria'],
-    'Great Britain': ['greatbritain', 'britain', 'uk', 'unitedkingdom', 'england', 'gb', 'britishempire'],
+    'Great Britain': ['greatbritain', 'britain', 'uk', 'unitedkingdom', 'gb', 'britishempire'],
     'France': ['france'], 'Russia': ['russia', 'russianempire'], 'Italy': ['italy'], 'Serbia': ['serbia'], 'Belgium': ['belgium'], 'Japan': ['japan'],
-    'Militarism': ['militarism'], 'Alliances': ['alliances', 'alliance'], 'Imperialism': ['imperialism'], 'Nationalism': ['nationalism'],
+    'Militarism': ['militarism'], 'Alliances': ['alliances', 'alliance', 'alliancesystem', 'alliancesystems', 'systemofalliances'], 'Imperialism': ['imperialism'], 'Nationalism': ['nationalism'],
   };
   const G = (names) => names.map((n) => ({ name: n, aliases: AL[n] || [norm(n)] }));
   const TYPED = [
     { id: 'central', must: true, fact: 'sides:central4', topic: 'sides', q: 'Type the four Central Powers.', slots: 4, need: 4, groups: G(STUDY.central), answerText: 'Germany, Austria-Hungary, Ottoman Empire, Bulgaria', explain: 'Bears Ate Green Oranges: Bulgaria, Austria-Hungary, Germany, Ottoman Empire.' },
     { id: 'allied', fact: 'sides:allied4', topic: 'sides', q: 'Name four Allied Powers.', slots: 4, need: 4, groups: G(STUDY.allied), answerText: 'Any four of: Great Britain, France, Russia, Italy, Serbia (also Belgium or Japan)', explain: STUDY.lines.allied5 || '' },
     { id: 'main', fact: 'cause:main', topic: 'vocab', q: 'What does M.A.I.N. stand for? Type the four causes.', slots: 4, need: 4, labels: ['M', 'A', 'I', 'N'], groups: G(['Militarism', 'Alliances', 'Imperialism', 'Nationalism']), answerText: 'Militarism, Alliances, Imperialism, Nationalism', explain: STUDY.lines.main || '' },
-    { id: 'assassin', fact: 'spark:assassin', topic: 'spark', q: 'Who assassinated Archduke Franz Ferdinand?', slots: 1, need: 1, groups: [{ name: 'Gavrilo Princip', aliases: ['gavriloprincip', 'princip', 'gavrilo', 'gavriloprinciple', 'principle'] }], answerText: 'Gavrilo Princip', explain: STUDY.lines.story || '' },
+    { id: 'assassin', fact: 'spark:assassin', topic: 'spark', q: 'Who assassinated Archduke Franz Ferdinand?', slots: 1, need: 1, groups: [{ name: 'Gavrilo Princip', aliases: ['gavriloprincip', 'princip', 'gavriloprinciple', 'principle'] }], answerText: 'Gavrilo Princip', explain: STUDY.lines.story || '' },
     { id: 'city', fact: 'spark:city', topic: 'spark', q: 'In which city was the Archduke assassinated?', slots: 1, need: 1, groups: [{ name: 'Sarajevo', aliases: ['sarajevo'] }], answerText: 'Sarajevo', explain: STUDY.lines.story || '' },
     { id: 'year', fact: 'spark:date', topic: 'spark', q: 'In what year was Archduke Franz Ferdinand assassinated?', slots: 1, need: 1, test: only1914, groups: [{ name: '1914', aliases: ['1914', 'june281914'] }], answerText: '1914 (June 28, 1914)', explain: STUDY.lines.story || '' },
     { id: 'heir', fact: 'spark:heir', topic: 'spark', q: 'Archduke Franz Ferdinand was heir to the throne of which empire?', slots: 1, need: 1, groups: G(['Austria-Hungary']), answerText: 'Austria-Hungary', explain: STUDY.lines.story || '' },
@@ -884,13 +886,38 @@
     { id: 'navy', fact: 'mil:best-navy', topic: 'compete', q: "Which country had the world's best navy before WWI?", slots: 1, need: 1, groups: G(['Great Britain']), answerText: 'Great Britain', explain: "Great Britain had the world's best navy; Germany tried to build a rival navy to match it." },
     { id: 'rival', fact: 'mil:rival-navy', topic: 'compete', q: "Which country tried to build a rival navy to match Great Britain's?", slots: 1, need: 1, groups: G(['Germany']), answerText: 'Germany', explain: "Germany tried to build a navy to rival Great Britain's — the naval arms race." },
   ];
+  /* a one-answer box may hold a few extra words ("Sarajevo, Bosnia", "it was Gavrilo Princip"): the answer has to be in
+     there, and no rival answer with it ("Germany or Britain" is a hedge, not an answer) */
+  function looseHit(item, n) {
+    const mine = []; item.groups.forEach((grp) => grp.aliases.forEach((a) => mine.push(a)));
+    if (!mine.some((a) => a.length >= 6 && n.indexOf(a) >= 0)) return false;
+    for (const name in AL) for (const a of AL[name]) {
+      if (a.length >= 5 && mine.indexOf(a) < 0 && n.indexOf(a) >= 0 && !mine.some((m) => m.indexOf(a) >= 0)) return false;
+    }
+    return true;
+  }
+  const SPLIT = /\s*(?:,|;|\/|\n|&|\+|\band\b)\s*/i;
   /* each typed value goes to the CLOSEST answer nobody has claimed yet: exact spellings first, then one slip, then two */
   function gradeTyped(item, values) {
     const raw = (values || []).filter((v) => v != null && String(v).trim());
     if (item.test) { const hit = raw.some((v) => item.test(v)) ? 1 : 0; return { ok: hit >= item.need, got: hit }; }
+    const known = (n) => item.groups.some((grp) => grp.aliases.some((a) => near(n, a) >= 0));
+    if (item.slots === 1) {
+      const v = raw.length ? String(raw[0]) : '', whole = norm(v); if (!whole) return { ok: false, got: 0 };
+      const head = norm(v.split(/[,;(\[\/]|\s[-–—]\s/)[0]);
+      const hit = known(whole) || (head && known(head)) || looseHit(item, whole);
+      return { ok: !!hit, got: hit ? 1 : 0 };
+    }
+    /* several answers in one box ("Germany, Bulgaria and Austria-Hungary") count one by one */
+    const toks = [];
+    raw.forEach((v) => {
+      const whole = norm(v); if (!whole) return;
+      if (known(whole)) { toks.push(whole); return; }
+      const parts = String(v).split(SPLIT).map(norm).filter(Boolean);
+      if (parts.length > 1) parts.forEach((x) => toks.push(x)); else toks.push(whole);
+    });
     const pairs = [];
-    raw.forEach((v, vi) => {
-      const n = norm(v); if (!n) return;
+    toks.forEach((n, vi) => {
       item.groups.forEach((grp, gi) => {
         let best = -1;
         grp.aliases.forEach((a) => { const d = near(n, a); if (d >= 0 && (best < 0 || d < best)) best = d; });
@@ -900,7 +927,8 @@
     pairs.sort((x, y) => x[0] - y[0] || x[1] - y[1] || x[2] - y[2]);
     const usedV = {}, usedG = {}; let got = 0;
     pairs.forEach((x) => { if (usedV[x[1]] || usedG[x[2]]) return; usedV[x[1]] = usedG[x[2]] = true; got++; });
-    return { ok: got >= item.need, got };
+    /* listing extra countries to be safe does not count: no more answers than there are boxes */
+    return { ok: got >= item.need && toks.length <= item.slots, got };
   }
   function buildPractice() {
     const plan = { vocab: 5, sides: 4, compete: 4, spark: 4 };
@@ -939,14 +967,14 @@
 
       function start() {
         if (closed) return;
-        const items = buildPractice(); const answers = []; let i = 0, armed = false;
+        const items = buildPractice(); const answers = []; let i = 0, armed = false, armAt = 0;
         const count = el('div', { class: 'display pt-count num' });
         const fill = el('i');
         /* two taps to quit; the armed label is the same width, so nothing in the header moves */
         const quit = el('button', { class: 'btn small ghost pt-quit', type: 'button', text: 'Quit' });
         quit.addEventListener('click', () => {
-          if (armed) return close();
-          armed = true; quit.textContent = 'Tap again'; quit.classList.add('danger'); quit.setAttribute('aria-label', 'Tap again to quit the practice test');
+          if (armed) { if (performance.now() - armAt < 350) return; return close(); }
+          armed = true; armAt = performance.now(); quit.textContent = 'Tap again'; quit.classList.add('danger'); quit.setAttribute('aria-label', 'Tap again to quit the practice test');
           clearTimeout(armT); armT = setTimeout(() => { armed = false; quit.textContent = 'Quit'; quit.classList.remove('danger'); quit.removeAttribute('aria-label'); }, 2500);
         });
         const slot = el('div', { class: 'pt-slot' });
@@ -1023,7 +1051,7 @@
         S.practiceCount++; if (pct > S.practiceBest) S.practiceBest = pct; SaveX.commit();
         last = { score, total, pct };
         const grade = pct >= 90 ? 'A' : pct >= 80 ? 'B' : pct >= 70 ? 'C' : pct >= 60 ? 'D' : 'NOT YET';
-        const msg = pct === 100 ? 'Flawless. You are quiz-ready.' : pct >= 90 ? 'Quiz-ready. Fix the last few below and you are golden.' : pct >= 80 ? 'So close. Read the misses below, then go again.' : pct >= 60 ? 'Getting there. Every miss below is a free point tomorrow.' : 'Good start. Read the misses, play a few runs, then try again.';
+        const msg = pct === 100 ? 'Flawless. You are quiz-ready.' : pct >= 90 ? 'Quiz-ready. Fix the last few below and you are golden.' : pct >= 80 ? 'So close. Read the misses below, then go again.' : pct >= 60 ? 'Getting there. Every miss below is a free point on the quiz.' : 'Good start. Read the misses, play a few runs, then try again.';
         sfx(pct >= 80 ? 'victory' : 'levelup');
         const again = el('button', { class: 'btn big', type: 'button', text: 'Try again' });
         const doneBtn = el('button', { class: 'btn primary big', type: 'button', text: 'Done' });
@@ -1059,7 +1087,7 @@
         setTimeout(() => { fills.forEach((x) => { x[0].style.width = x[1] + '%'; }); }, reduced() ? 0 : 120);
         if (pct === 100) confetti(sheet);
         screen.classList.add('pt-done');   /* a results page plainly continues: no "more below" tag here */
-        screen.scrollTop = 0; cue();
+        screen.scrollTop = 0; cue(); toFocus(screen);   /* keyboard: arrows and Page Down scroll the misses straight away */
       }
       start();
     });
@@ -1175,6 +1203,7 @@
     init, ask, reviveGauntlet, bonusRound, practiceTest, openCodex, readiness, stats, record,
     drill, weakCount, runReset, runMisses, reviewSheet,
     isOpen: () => openCount > 0,
+    gauntletTally: () => ({ right: gauntlet.right, wrong: gauntlet.wrong }),
     kinds: Object.keys(GAMES),
     _debug: { pickQuestion, gradeTyped, norm, fuzzy, TYPED, weakest },
   };
