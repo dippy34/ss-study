@@ -14,6 +14,8 @@
   let avatarSeq = 0;
   let shownReady = null;   // readiness % the title last showed (the bar grows from here)
   let lastHeroSize = 0;
+  let studyOpen = false;   // a Quick Review or a "missed" sheet that we opened is still on screen
+  let studyAt = 0;
 
   /* ------------------------------------------------------------------ data */
   const WEAPONS = {
@@ -67,7 +69,7 @@
     { id: 'regen', name: 'Field Medic', desc: 'Slowly heal all the time.', max: 4, costs: [80, 160, 280, 450],
       label: (l) => '+' + (0.25 * l) + ' HP per second', apply: (b, l) => { b.regen += 0.25 * l; } },
     { id: 'armor', name: 'Steel Plating', desc: 'Every hit hurts a little less.', max: 3, costs: [150, 400, 900],
-      label: (l) => '+' + l + ' armor', apply: (b, l) => { b.armor += l; } },
+      label: (l) => (7 * l) + '% less damage taken', apply: (b, l) => { b.armor += l; } },
     { id: 'rerolls', name: 'Second Opinion', desc: 'Swap your upgrade choices for new ones during a run.', max: 3, costs: [200, 450, 800],
       label: (l) => '+' + l + (l === 1 ? ' reroll' : ' rerolls') + ' per run', apply: (b, l) => { b.rerolls += l; } },
     { id: 'revives', name: 'Extra Life', desc: 'Get back up one more time after you fall.', max: 1, costs: [1200],
@@ -123,6 +125,7 @@
   const toast = (html, opts) => { try { window.Toast && Toast.show(html, opts); } catch (e) {} };
   const calm = () => { try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { return false; } };
   const gameOn = () => { try { return !!(window.Game && Game.isRunning && Game.isRunning()); } catch (e) { return false; } };
+  const quizBusy = () => { try { return !!(window.Quiz && Quiz.isOpen && Quiz.isOpen()); } catch (e) { return false; } };
 
   function readiness() {
     let r = null;
@@ -167,14 +170,14 @@
   function btn(label, cls, fn, attrs) {
     const b = U.el('button', Object.assign({ type: 'button', class: 'btn ' + (cls || '') }, attrs || {}));
     (Array.isArray(label) ? label : [label]).forEach((n) => { if (n != null && n !== false) b.append(n); });
-    b.addEventListener('click', (e) => { if (!b.dataset.quiet) sfx('click'); if (fn) fn(e, b); });
+    b.addEventListener('click', (e) => { if (covered()) return; if (!b.dataset.quiet) sfx('click'); if (fn) fn(e, b); });
     return b;
   }
   /* a plain <button> with its own look (not the .btn slab) */
   function tap(cls, kids, fn, attrs) {
     const b = U.el('button', Object.assign({ type: 'button', class: cls }, attrs || {}));
     (Array.isArray(kids) ? kids : [kids]).forEach((n) => { if (n != null && n !== false) b.append(n); });
-    b.addEventListener('click', (e) => { if (!b.dataset.quiet) sfx('click'); if (fn) fn(e, b); });
+    b.addEventListener('click', (e) => { if (covered()) return; if (!b.dataset.quiet) sfx('click'); if (fn) fn(e, b); });
     return b;
   }
 
@@ -188,6 +191,7 @@
     (function step(t) {
       const k = Math.min(1, Math.max(0, (t - t0) / ms)), v = Math.round(from + (to - from) * (1 - Math.pow(1 - k, 3)));
       el.textContent = f(v);
+      if (k < 1 && t !== t0 && !el.isConnected) { el.textContent = f(to); return; }   // its screen is gone: stop counting
       if (k < 1) st.id = requestAnimationFrame(step);
     })(t0);
     tweens.set(el, st);
@@ -211,7 +215,7 @@
   function replay(el, cls) { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
 
   /* ---- living portraits: ONE shared animation loop, alive only while portraits are on screen ---- */
-  const PORT = { list: [], raf: 0 };
+  const PORT = { list: [], raf: 0, nap: 0 };
   const canDraw = () => !!(window.PK && PK.portrait && PK.portrait.hero);
   function drawPort(e, t) {
     try { PK.portrait.hero(e.cv, e.ch, t, { size: e.size, moving: e.moving, faceX: e.faceX }); }
@@ -220,15 +224,19 @@
   function portTick() {
     PORT.raf = 0;
     if (document.hidden) return;
-    if (gameOn()) { PORT.list.length = 0; return; }
+    if (gameOn()) { portStop(); return; }                    // a run owns every frame: nothing of ours draws
     PORT.list = PORT.list.filter((e) => e.live && e.cv.isConnected);
     if (!PORT.list.length) return;
+    if (covered()) { clearTimeout(PORT.nap); PORT.nap = setTimeout(portKick, 400); return; }   // hold still behind a question card
     const t = performance.now() / 1000;
     for (let i = 0; i < PORT.list.length; i++) drawPort(PORT.list[i], t);
     PORT.raf = requestAnimationFrame(portTick);
   }
-  function portKick() { if (!PORT.raf && !document.hidden && PORT.list.length) PORT.raf = requestAnimationFrame(portTick); }
-  function portStop() { PORT.list.length = 0; if (PORT.raf) { cancelAnimationFrame(PORT.raf); PORT.raf = 0; } }
+  function portKick() {
+    if (gameOn()) { portStop(); return; }
+    if (!PORT.raf && !document.hidden && PORT.list.length) PORT.raf = requestAnimationFrame(portTick);
+  }
+  function portStop() { PORT.list.length = 0; clearTimeout(PORT.nap); if (PORT.raf) { cancelAnimationFrame(PORT.raf); PORT.raf = 0; } }
   /* a character drawn by the game's own art. o = {live, moving, faceX, cls}. Static ones are drawn once. */
   function heroCanvas(ch, size, o) {
     o = o || {};
@@ -239,7 +247,7 @@
     const e = { cv, ch, size, moving: !!o.moving, faceX: o.faceX || 1, live: true };
     drawPort(e, o.live === false || calm() ? 0.6 : performance.now() / 1000);
     if (!e.live) { const a = avatar(ch, 'mt-port ' + (o.cls || '')); a.style.width = a.style.height = Math.min(w, h) + 'px'; return a; }   // the art failed: stand-in
-    if (e.live && o.live !== false && !calm()) { PORT.list.push(e); requestAnimationFrame(portKick); }
+    if (e.live && o.live !== false && !calm() && !gameOn()) { PORT.list.push(e); requestAnimationFrame(portKick); }
     return cv;
   }
 
@@ -321,7 +329,7 @@
     xpMult: (v) => [pct(v) + ' XP', v >= 1],
     coinMult: (v) => [pct(v) + ' coins', v >= 1],
     cooldownMult: (v) => [Math.abs(Math.round((1 - v) * 100)) + '% ' + (v <= 1 ? 'faster' : 'slower') + ' firing', v <= 1],
-    armor: (v) => [(v > 0 ? '+' : '') + v + ' armor', v > 0],
+    armor: (v) => [(7 * v) + '% less damage taken', v > 0],
     regen: (v) => ['+' + v + ' HP/sec', v > 0],
     crit: (v) => ['+' + Math.round(v * 100) + '% crit', v > 0],
     revives: (v) => ['+' + v + ' revive', v > 0],
@@ -405,6 +413,7 @@
 
   /* --------------------------------------------------------------- start a run */
   function startRun() {
+    if (covered()) return;
     if (!(window.Game && Game.start)) { sfx('error'); toast('The game engine is not loaded.', { kind: 'bad' }); return; }
     try { window.AudioSys && AudioSys.unlock && AudioSys.unlock(); } catch (e) {}
     readyBefore = readiness().overall;
@@ -435,18 +444,81 @@
     return w;
   }
   function heroSize() { const w = window.innerWidth || 390, h = window.innerHeight || 720; return Math.round(U.clamp(Math.min(w * 0.33, h * 0.165), 84, 156)); }
-  function readyCard(r, from) {
-    const p = r.overall, f = from == null ? p : U.clamp(from, 0, 100);
-    const sub = p >= 100 ? 'Every fact mastered. You are ready!' : r.total ? r.mastered + ' of ' + r.total + ' facts mastered' : 'How much of the study guide you know';
-    const pctEl = U.el('div', { class: 'display mt-ready-pct num ' + (p > 0 ? lvClass(p) : ''), text: p + '%' });
-    if (f !== p) tweenNum(pctEl, f, p, 800, (v) => v + '%');
-    return U.el('section', { class: 'paper mt-ready', 'aria-label': 'Quiz readiness: ' + p + ' percent' },
-      U.el('div', { class: 'mt-ready-head' },
-        U.el('div', { class: 'grow' },
-          U.el('div', { class: 'mt-ready-title', text: 'Quiz Readiness' }),
-          U.el('div', { class: 'mt-ready-sub', text: sub })),
-        pctEl),
-      bar(p, 'mt-bar-big mt-shine', f === p ? Math.max(0, p - 12) : f));
+  /* ---- study shortcuts. Quiz may not offer them yet: then the entry points simply are not there ---- */
+  const canDrill = () => !!(window.Quiz && typeof Quiz.drill === 'function');
+  const canSheet = () => !!(window.Quiz && typeof Quiz.reviewSheet === 'function' && typeof Quiz.runMisses === 'function');
+  const studyBusy = () => studyOpen && (quizBusy() || performance.now() - studyAt < 1500);   // never trust a stuck flag for long
+  /* a question card or a study sheet is covering the screen: nothing underneath may react (a focused button would
+     otherwise still fire on Enter). An open-count that says "open" with no card on screen is not believed. */
+  function covered() {
+    if (!studyBusy() && !quizBusy()) return false;
+    const m = document.getElementById('modals');
+    return !m || m.childElementCount > 0 || performance.now() - studyAt < 1500;
+  }
+  function dropFocus() { const a = document.activeElement, r = root(); if (a && r && r.contains(a) && a.blur) a.blur(); }
+  function weakLeft(r) {
+    let n = null;
+    try { if (window.Quiz && Quiz.weakCount) n = Quiz.weakCount(); } catch (e) { n = null; }
+    if (typeof n === 'number' && isFinite(n)) return Math.max(0, Math.round(n));
+    return r.total ? Math.max(0, r.total - r.mastered) : null;
+  }
+  function runMisses() {
+    try { if (canSheet()) { const l = Quiz.runMisses(); return Array.isArray(l) ? l.filter((m) => m && m.q).slice(0, 8) : []; } } catch (e) {}
+    return [];
+  }
+  const byKeys = (e) => !!e && e.detail === 0;          // the button was pressed with Enter/Space, not tapped
+  function chevron() { return U.el('i', { class: 'mt-caret', 'aria-hidden': 'true' }); }
+  /* Quick Review: ten questions on the weakest facts, then the title shows what it did to the readiness bar */
+  function openDrill(e) {
+    if (covered() || gameOn() || !canDrill()) return;
+    const keys = byKeys(e);
+    let p; try { p = Quiz.drill({ count: 10 }); } catch (err) { p = null; }
+    studyOpen = true; studyAt = performance.now(); dropFocus();
+    const done = () => {
+      studyOpen = false;
+      checkAll(false);
+      if (current !== 'title' || gameOn()) return;
+      showTitle();
+      if (keys) { const c = document.getElementById('mt-drill'); if (c) c.focus({ preventScroll: true }); }
+    };
+    Promise.resolve(p).then(done, done);
+  }
+  /* the questions missed in the run that just ended, as a sheet over the results */
+  function openMissed(list, e, b) {
+    if (covered() || !canSheet()) return;
+    const keys = byKeys(e);
+    let p; try { p = Quiz.reviewSheet(list, 'Missed this run'); } catch (err) { p = null; }
+    studyOpen = true; studyAt = performance.now(); dropFocus();
+    const done = () => {
+      studyOpen = false;
+      if (current !== 'results') return;
+      resultsAt = performance.now(); portKick();
+      if (U.isTouch()) return;
+      const t = keys && b && b.isConnected ? b : document.getElementById('mt-again');
+      if (t) t.focus({ preventScroll: true });
+    };
+    Promise.resolve(p).then(done, done);
+  }
+
+  /* the report card. When Quiz can drill, the whole card is one button: tap = Quick Review.
+     still = an in-place refresh, so an unchanged bar does not re-grow */
+  function readyCard(r, from, still) {
+    const p = r.overall, f = from == null ? p : U.clamp(from, 0, 100), same = f === p;
+    const go = canDrill(), weak = weakLeft(r), all = r.total > 0 && (weak === 0 || (weak == null && p >= 100));
+    const pctEl = U.el('span', { class: 'display mt-ready-pct num ' + (p > 0 ? lvClass(p) : ''), text: p + '%' });
+    if (!same) tweenNum(pctEl, f, p, 800, (v) => v + '%');
+    const head = U.el('span', { class: 'mt-ready-head' }, U.el('span', { class: 'mt-ready-title grow', text: 'Quiz Readiness' }), pctEl);
+    const meter = bar(p, 'mt-bar-big' + (still && same ? '' : ' mt-shine'), same ? (still ? p : Math.max(0, p - 12)) : f);
+    if (!go) {
+      const sub = all ? 'Every fact mastered. You are ready!' : r.total ? r.mastered + ' of ' + r.total + ' facts mastered' : 'How much of the study guide you know';
+      return U.el('section', { class: 'paper mt-ready', 'aria-label': 'Quiz readiness: ' + p + ' percent' }, head, meter, U.el('span', { class: 'mt-ready-sub', text: sub }));
+    }
+    const say = all ? 'All ' + r.total + ' facts mastered. Tap to stay sharp.' : 'Quick review: 10 questions on your weak spots';
+    const line = U.el('span', { class: 'mt-ready-go' },
+      all ? U.el('span', { class: 't', text: say })
+          : U.el('span', { class: 't' }, U.el('b', { text: 'Quick review:' }), U.el('span', { class: 'l', text: ' 10 questions on your weak spots' }), U.el('span', { class: 's', text: ' 10 of your weak spots' })),
+      chevron());
+    return tap('paper mt-ready mt-pbtn', [head, meter, line], openDrill, { id: 'mt-drill', 'aria-label': 'Quiz readiness: ' + p + ' percent. ' + say });
   }
   function dangerStepper() {
     const val = U.el('b', { class: 'num' }), note = U.el('span');
@@ -475,6 +547,7 @@
     plate.style.setProperty('--hs', hs + 'px');
     const tile3 = (icon, label, fn) => btn([U.el('span', { class: 'ic' }, ico(icon, 30)), U.el('span', { class: 'lb', text: label })], 'mt-tile3', fn);
     const from = shownReady == null ? null : shownReady; shownReady = r.overall;
+    const still = current === 'title';                   // refreshing in place (e.g. after a Quick Review)
     const wrap = U.el('div', { class: 'wrap' },
       U.el('div', { class: 'mt-top' }, walletEl(),
         U.el('div', { class: 'mt-top-r' },
@@ -484,7 +557,7 @@
       U.el('div', { class: 'mt-deck' },
         btn('PLAY', 'primary big mt-play', startRun, { id: 'mt-play' }),
         M.maxDanger > 0 ? dangerStepper() : null,
-        readyCard(r, from),
+        readyCard(r, from, still),
         U.el('div', { class: 'mt-menu' },
           tile3('shop', 'Upgrades', () => showShop(showTitle)),
           tile3('pencil', 'Practice Test', openPractice),
@@ -498,11 +571,13 @@
   function openPractice() {
     if (!(window.Quiz && Quiz.practiceTest)) { sfx('error'); toast('The Practice Test is not loaded.', { kind: 'bad' }); return; }
     let p; try { p = Quiz.practiceTest(); } catch (e) { p = null; }
+    dropFocus();
     Promise.resolve(p).then(afterLearning, afterLearning);
   }
   function openCodex() {
     if (!(window.Quiz && Quiz.openCodex)) { sfx('error'); toast('The Study Notes are not loaded.', { kind: 'bad' }); return; }
     let p; try { p = Quiz.openCodex(); } catch (e) { p = null; }
+    dropFocus();
     Promise.resolve(p).then(afterLearning, afterLearning);
   }
 
@@ -738,6 +813,11 @@
           U.el('div', { class: 'mt-ready-sub', text: delta > 0 ? 'Up ' + delta + ' points this run. Keep going!' : x.readyAfter >= 100 ? 'Every fact mastered. You are ready!' : 'Answer more questions right to push this up.' })),
         readyPct),
       bar(x.readyAfter, 'mt-bar-big mt-shine', x.readyBefore));
+    /* one quiet row: what he got wrong in this run, opened as a sheet */
+    const misses = canSheet() && Array.isArray(x.misses) ? x.misses : [];
+    const missRow = misses.length ? tap('paper mt-pbtn mt-missed', [
+      U.el('span', { class: 't' }, 'Review ', U.el('b', { text: misses.length + (misses.length === 1 ? ' question' : ' questions') }), ' you missed'), chevron()],
+      (e, b) => openMissed(misses, e, b), { id: 'mt-missed' }) : null;
     const news = [];
     if (x.newDanger) news.push(U.el('li', { class: 'danger' }, U.el('span', { class: 'mt-news-ic' }, ico('flame', 28)), U.el('div', { class: 'grow' }, U.el('b', { text: 'Danger +' + M.maxDanger + ' unlocked' }), U.el('span', { text: 'Tougher monsters, bigger coin payouts. Set it on the title screen.' }))));
     x.chars.forEach((c) => news.push(U.el('li', { class: 'char' }, U.el('span', { class: 'mt-news-ic' }, heroCanvas(c, 40, { live: false })), U.el('div', { class: 'grow' }, U.el('b', { text: 'New agent: ' + c.name }), U.el('span', { text: 'Starts with ' + WEAPONS[c.startWeapon] + '.' })))));
@@ -751,7 +831,7 @@
       U.el('details', { class: 'mt-more' }, U.el('summary', { text: 'More from this run' }),
         U.el('div', { class: 'mt-tiles mt-res-tiles' },
           tile('Level', fmt(s.level)), tile('Bosses beaten', fmt(s.bossKills)), tile('Best streak', fmt(s.bestStreak)), tile('Act reached', act + '/5'))),
-      coinBox, readyBox,
+      coinBox, readyBox, missRow,
       news.length ? U.el('section', { class: 'col' }, U.el('h2', { class: 'eyebrow mt-sec', text: 'New this run' }), U.el('ul', { class: 'mt-news' }, news)) : null)),
       U.el('div', { class: 'mt-res-actions' }, again, btn('Upgrades', '', () => showShop(() => showResults(s, x))), btn('Menu', '', showTitle)));
     mount(U.el('div', { class: 'screen mt-sub mt-results ' + (win ? 'is-win' : 'is-loss') }, wrap), 'results', showTitle);
@@ -785,14 +865,14 @@
     if (got.ach.length || got.chars.length || newDanger) setTimeout(() => sfx('unlock'), 700);
     Save.commit(); if (Save.flush) Save.flush();
     const after = readiness().overall;
-    showResults(s, { coins, ach: got.ach, chars: got.chars, newDanger, readyBefore: readyBefore == null ? after : Math.min(readyBefore, after), readyAfter: after, best, fresh: true });
+    showResults(s, { coins, ach: got.ach, chars: got.chars, newDanger, readyBefore: readyBefore == null ? after : Math.min(readyBefore, after), readyAfter: after, best, misses: runMisses(), fresh: true });
     readyBefore = null;
   }
 
   /* --------------------------------------------------------------- keys + init */
   function onKey(e) {
     if (!current || e.defaultPrevented || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
-    try { if (window.Quiz && Quiz.isOpen && Quiz.isOpen()) return; if (window.Game && Game.isRunning && Game.isRunning()) return; } catch (err) {}
+    if (quizBusy() || studyBusy() || gameOn()) return;      // strict on purpose: also between two question cards
     const k = e.key, a = document.activeElement;
     const onControl = a && a !== document.body && /^(BUTTON|INPUT|TEXTAREA|SELECT|A|SUMMARY)$/.test(a.tagName) && a.isConnected;
     if (k === 'Escape') {
@@ -809,7 +889,8 @@
   let rsT = 0;
   function onResize() {
     clearTimeout(rsT);
-    rsT = setTimeout(() => { if (current === 'title' && !helpVeil && !gameOn() && Math.abs(heroSize() - lastHeroSize) > 10) showTitle(); }, 250);
+    /* not behind an open question card: the title refreshes (and shows the readiness change) when that closes */
+    rsT = setTimeout(() => { if (current === 'title' && !helpVeil && !gameOn() && !covered() && Math.abs(heroSize() - lastHeroSize) > 10) showTitle(); }, 250);
   }
   function init() {
     M = Save.ns('meta', { coins: 0, totalCoins: 0, up: {}, chars: { cadet: true }, char: 'cadet', ach: {}, danger: 0, maxDanger: 0, seenHelp: false,

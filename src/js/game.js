@@ -401,7 +401,9 @@
     const a = g.actDef, kind = a.boss, bd = BOSS[kind], base = a.bossHp;
     const hp = Math.max(base * 0.7, Math.min(base * 1.8, g.dpsPeak * PK.TUNE.bossDps)) * Math.pow(g.mult.hp, 0.8);
     const mk = (i, n) => {
-      const q = [g.player.x + (n === 2 ? (i ? 70 : -70) : 0), g.player.y - Math.min(g.vh * 0.26, 300)];
+      /* arrive in view but clear of the HUD: from above on tall screens, from the side on wide ones */
+      const wide = g.vw > g.vh * 1.25, off = wide ? Math.min(g.vw * 0.3, 320) : Math.min(g.vh * 0.26, 300);
+      const q = wide ? [g.player.x + off, g.player.y + (n === 2 ? (i ? 65 : -65) : 0)] : [g.player.x + (n === 2 ? (i ? 70 : -70) : 0), g.player.y - off];
       const b = { boss: true, kind, def: bd, name: a.bossName, type: 'boss', x: q[0], y: q[1], r: bd.r, hp: hp / n, maxHp: hp / n, spd: bd.spd * g.mult.spd, dmg: bd.dmg * (1 + 0.1 * g.act), kx: 0, ky: 0, flash: 0, seed: 0, t: 0,
         shield: false, shieldT: 0, stun: 0, enr: 0, gates: n === 1 ? [0.66, 0.33] : [0.5], side: i, mate: null, rage: 0, raging: false, aimA: 0, face: -1, born: g.t, st: '', dx: 0, dy: 0, dead: false, xp: 0, elite: false };
       bd.init(b, i); g.enemies.push(b); g.bosses.push(b); return b;
@@ -607,7 +609,7 @@
     const p = g.player; begin(); let first = true, ok = true;
     while (p.pendingLv > 0 && g.state === 'play') {
       p.pendingLv--; p.level++;
-      if (first) { first = false; sfx('levelup'); const res = await ask({ context: 'levelup', key: Math.random() < 0.5 ? g.actDef.key : undefined }); ok = !!(res && res.correct); answered(ok); }
+      if (first) { first = false; sfx('levelup'); const res = await ask({ context: 'levelup' });   /* no topic bias: the act must never hint at the answer */ ok = !!(res && res.correct); answered(ok); }
       if (g.state !== 'play') break;
       await pick(ok ? 3 : 1, ok ? 'CHOOSE YOUR UPGRADE' : 'RANDOM UPGRADE', ok ? 'Level ' + p.level : 'Missed it. Get the next one right to choose.');
     }
@@ -615,7 +617,7 @@
   }
   async function bossFlow(b) {
     begin(); sfx('shield_up'); fx('shieldUp', b.x, b.y, { r: b.r }); if (DBG.auto == null) await sleep(260);
-    const res = await ask({ context: 'boss', key: b.def.key, timeLimit: 25, header: 'BREAK THE SHIELD', sub: b.name + ' raised a shield. Answer right to shatter it.' });
+    const res = await ask({ context: 'boss', timeLimit: 25, header: 'BREAK THE SHIELD', sub: b.name + ' raised a shield. Answer right to shatter it.' });
     const ok = !!(res && res.correct); answered(ok);
     if (b.hp > 0) {
       if (ok) { b.shield = false; b.stun = 2.4; b.hp = Math.max(1, b.hp - b.maxHp * 0.06); ring(b.x, b.y, b.r, b.r * 4, '#9fe8ff', 8, 0.6); burst(b.x, b.y, '#9fe8ff', 26); fx('shieldBreak', b.x, b.y, { r: b.r }); sfx('shield_break'); text(b.x, b.y - b.r - 28, 'SHIELD SHATTERED!', '#9fe8ff', 18, 1.6); shake(10); }
@@ -704,6 +706,7 @@
     const bon = Object.assign({ maxHp: 0, dmgMult: 1, speedMult: 1, magnetMult: 1, xpMult: 1, coinMult: 1, armor: 0, regen: 0, cooldownMult: 1, crit: 0, revives: 0, rerolls: 0 }, window.Meta && Meta.bonuses ? Meta.bonuses() : {});
     const ch = Object.assign({ id: 'cadet', name: 'Time Cadet', color: '#e9b949', hat: 'cap', startWeapon: 'blaster' }, (window.Meta && Meta.character ? Meta.character() : null) || {});
     g.player = newPlayer(ch, bon); g.state = 'play'; g.act = Math.max(0, Math.min(ACTS.length - 1, o.act | 0)); g.actDef = ACTS[g.act]; g.maxAct = g.act + 1; g.cap = U.isTouch() ? 100 : 140;
+    try { if (window.Quiz && Quiz.runReset && !DBG.turbo) Quiz.runReset(); } catch (e) {}
     PK.UI.reset(); hudShow(true); hudAct(); hudWeps(); music(g.actDef.music);
     banner('ACT ' + g.actDef.n + ' · ' + g.actDef.name, g.actDef.def, g.actDef.color, g.actDef.key === 'S' ? '⚡' : g.actDef.key, 3400);
     R.resize(g);

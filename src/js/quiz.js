@@ -171,8 +171,10 @@
   }
 
   /* ================= the question modal ================= */
-  const HEAD = { levelup: 'LEVEL UP — answer to choose your upgrade', boss: 'BREAK THE SHIELD', revive: 'LAST STAND', practice: 'QUICK QUESTION' };
-  const HICON = { levelup: 'star', boss: 'shield', revive: 'hp', practice: 'pencil' };
+  const HEAD = { levelup: 'LEVEL UP — answer to choose your upgrade', boss: 'BREAK THE SHIELD', revive: 'LAST STAND', practice: 'QUICK QUESTION', drill: 'QUICK REVIEW' };
+  const HICON = { levelup: 'star', boss: 'shield', revive: 'hp', practice: 'pencil', drill: 'bolt' };
+  const RUN_CTX = { levelup: 1, boss: 1, revive: 1 };
+  let runMiss = [];   /* wrong answers given inside the current run (for the results screen) */
   const YES = ['CORRECT', 'NAILED IT', 'YES', 'SHARP', 'RIGHT'];
   const STREAKS = [3, 5, 10, 15, 20, 25, 30, 40, 50, 75, 100];
 
@@ -189,9 +191,14 @@
       const timerFill = el('i');
       const secs = el('span', { class: 'qz-secs num', text: timed ? String(Math.ceil(opts.timeLimit)) : '' });
       const timer = el('div', { class: 'qz-timer', hidden: !timed }, ico('clock', 18), el('div', { class: 'bar' }, timerFill), secs);
-      const pips = step ? el('div', { class: 'qz-pips', role: 'img', 'aria-label': 'Question ' + step[0] + ' of ' + step[1] },
+      const marks = step && Array.isArray(opts.marks) ? opts.marks : null;   /* drill: how the earlier cards went */
+      const pips = step && !marks ? el('div', { class: 'qz-pips', role: 'img', 'aria-label': 'Question ' + step[0] + ' of ' + step[1] },
         Array.from({ length: step[1] }, (_, k) => el('i', { class: k + 1 < step[0] ? 'done' : k + 1 === step[0] ? 'now' : '' })),
         el('span', { class: 'qz-pips-n num', text: step[0] + '/' + step[1] })) : null;
+      const strip = marks ? el('div', { class: 'qz-prog', role: 'img', 'aria-label': 'Question ' + step[0] + ' of ' + step[1] },
+        el('div', { class: 'qz-prog-bars' }, Array.from({ length: step[1] }, (_, k) => el('i', { class: k < marks.length ? (marks[k] ? 'ok' : 'no') : k === step[0] - 1 ? 'cur' : '' }))),
+        el('span', { class: 'qz-pips-n num', text: step[0] + '/' + step[1] })) : null;
+      const stopBtn = opts.stop ? el('button', { class: 'qz-stop', type: 'button', 'aria-label': 'Stop the review', text: 'Stop' }) : null;
       const btns = P.choices.map((c, i) => el('button', { class: 'btn qz-choice', type: 'button' },
         el('span', { class: 'qz-key', text: String(i + 1) }), el('span', { class: 'qz-choice-text', text: c })));
       btns.forEach((bt, i) => bt.style.setProperty('--i', String(i)));
@@ -200,7 +207,8 @@
         el('div', { class: 'qz-head' },
           garnish(HICON[ctx] || 'star', 22),
           el('div', { class: 'display qz-header' }, el('span', { text: head[0] }), head.length > 1 ? el('small', { text: head.slice(1).join(' — ') }) : null),
-          pips),
+          pips, stopBtn),
+        strip,
         timer,
         el('div', { class: 'qz-q', text: q.q }),
         el('div', { class: 'qz-choices' + (P.choices.length === 2 ? ' two' : '') }, btns),
@@ -228,6 +236,9 @@
         modal.classList.remove('qz-card-in'); modal.classList.add(ok ? 'qz-ok' : 'qz-no');
         timer.classList.add('done');
         if (pips) { const now = pips.querySelector('.now'); if (now) now.className = ok ? 'done' : 'fail'; }
+        if (strip) { const cur = strip.querySelector('.cur'); if (cur) cur.className = ok ? 'ok' : 'no'; }
+        const missed = ok ? null : { fact: q.fact, q: q.q, answer: P.choices[P.answer], explain: q.explain || '', key: q.key };
+        if (missed && RUN_CTX[ctx]) runMiss.push(missed);
 
         let streakEl = '';
         if (S.streak > 1) {
@@ -244,6 +255,7 @@
           note, cont);
         fb.hidden = false;
         result = { correct: ok, questionId: q.id, factId: q.fact, timeMs: Math.round(performance.now() - t0), streak: S.streak };
+        if (opts.stop && missed) result.miss = missed;
         setTimeout(() => { canGo = true; }, ok ? 220 : 450);
         cont.addEventListener('click', () => { if (canGo) finish(); });
         try {
@@ -262,9 +274,16 @@
         sfx('click');
         leave(veil, () => { veil.remove(); openCount--; resolve(result); });
       }
+      /* drill only: leave now. An unanswered card is dropped (nothing recorded); an answered one still counts. */
+      function stop() {
+        if (done) return;
+        if (!answered) { answered = true; result = { stopped: true, answered: false }; }
+        else result = Object.assign({}, result, { stopped: true });
+        finish();
+      }
       function onKey(e) {
         const k = e.key;
-        if (k === 'Escape') { e.preventDefault(); e.stopPropagation(); return; }
+        if (k === 'Escape') { e.preventDefault(); e.stopPropagation(); if (opts.stop && !e.repeat) stop(); return; }
         if (!answered) {
           let i = -1;
           if (k >= '1' && k <= '9') i = parseInt(k, 10) - 1;
@@ -277,6 +296,7 @@
         }
       }
       btns.forEach((b, i) => b.addEventListener('click', () => choose(i)));
+      if (stopBtn) stopBtn.addEventListener('click', stop);
       window.addEventListener('keydown', onKey, true);
       if (timed) {
         const total = opts.timeLimit * 1000;
@@ -300,6 +320,135 @@
       if (!r || !r.correct) return false;
     }
     return true;
+  }
+
+  /* ================= quick review (drill), run misses, review sheet ================= */
+  const weakCount = () => { st(); return STUDY.facts.filter((f) => boxOf(f.id) < 2).length; };
+  function runReset() { runMiss = []; }
+  /* newest first, one per fact, at most 8 */
+  function runMisses() {
+    const seen = {}, out = [];
+    for (let i = runMiss.length - 1; i >= 0 && out.length < 8; i--) { const m = runMiss[i]; if (seen[m.fact]) continue; seen[m.fact] = true; out.push({ q: m.q, answer: m.answer, explain: m.explain, key: m.key, fact: m.fact }); }
+    return out;
+  }
+  /* the n weakest facts: just-missed first, then never seen, then box 1, then (only to fill up) the mastered ones he has not seen for longest */
+  function weakest(n) {
+    st();
+    const pending = {}; retry.forEach((r) => { pending[r.fact] = true; });
+    const missed = [], fresh = [], learning = [], solid = [];
+    STUDY.facts.forEach((f) => {
+      if (!byFact[f.id]) return;
+      const x = S.mastery[f.id];
+      if (!x || !x.s) fresh.push(f);
+      else if (pending[f.id] || x.b === 0) missed.push(f);
+      else if (x.b < 2) learning.push(f);
+      else solid.push(f);
+    });
+    const seenAt = (f) => (S.mastery[f.id] ? S.mastery[f.id].t || 0 : 0);
+    missed.sort((a, c) => seenAt(c) - seenAt(a));
+    learning.sort((a, c) => seenAt(a) - seenAt(c));
+    solid.sort((a, c) => seenAt(a) - seenAt(c));
+    return missed.concat(U.shuffle(fresh), learning, solid).slice(0, n);
+  }
+  /* a question for one fact, with the same no-repeat bookkeeping the game uses */
+  function questionFor(factId) {
+    const all = byFact[factId] || STUDY.questions;
+    const pool = all.filter((q) => recentQ.indexOf(q.id) < 0);
+    const list = pool.length ? pool : all;
+    let min = Infinity; list.forEach((q) => { const c = qCount[q.id] || 0; if (c < min) min = c; });
+    const q = U.pick(list.filter((x) => (qCount[x.id] || 0) === min));
+    qCount[q.id] = (qCount[q.id] || 0) + 1;
+    recentQ.push(q.id); if (recentQ.length > 8) recentQ.shift();
+    recentF.push(q.fact); if (recentF.length > 4) recentF.shift();
+    const due = retry.findIndex((r) => r.fact === factId); if (due >= 0) retry.splice(due, 1);
+    return q;
+  }
+  /* the "fix these" list: question, the right answer lit green, the explanation with its cause medal */
+  function reviewList(items) {
+    return el('div', { class: 'rv-list' }, items.map((m) => {
+      const k = m && m.key && KEYS[m.key] ? m.key : null;
+      return el('div', { class: 'rv-item' },
+        el('div', { class: 'rv-q', text: (m && m.q) || '' }),
+        el('div', { class: 'qz-answer' }, ico('check', 20), el('div', { class: 'qz-answer-text' }, el('span', { class: 'eyebrow', text: 'Answer' }), el('b', { text: (m && m.answer) || '' }))),
+        m && m.explain ? el('div', { class: 'rv-why' + (k ? ' key-' + KEYS[k].cls : '') }, k ? medal(k, 22) : null, el('p', { text: m.explain })) : null);
+    }));
+  }
+  function drill(opts) { opts = opts || {}; return serial(() => runDrill(opts)); }
+  async function runDrill(opts) {
+    st();
+    const count = Math.max(1, Math.min(30, (opts.count | 0) || 10));
+    let last = { correct: 0, total: 0, quit: false };
+    openCount++;   /* the whole session counts as open, including the gaps between cards */
+    try {
+      for (;;) {
+        const facts = weakest(count), before = readiness().overall, marks = [], misses = [];
+        let quit = false;
+        for (let i = 0; i < facts.length; i++) {
+          const r = await askNow({ context: 'drill', question: questionFor(facts[i].id), step: [i + 1, facts.length], marks: marks.slice(), stop: true });
+          if (r && r.answered !== false) { marks.push(!!r.correct); if (r.miss) misses.push(r.miss); }
+          if (r && r.stopped) { quit = true; break; }
+        }
+        last = { correct: marks.filter(Boolean).length, total: marks.length, quit };
+        if (!marks.length) break;   /* left before answering anything */
+        if (!(await drillEnd(last, before, readiness().overall, misses))) break;
+      }
+    } catch (e) { if (window.console) console.error('quick review failed', e); }
+    openCount--;
+    return last;
+  }
+  /* end card: score, readiness before -> after, what to fix. Resolves true for "Again". */
+  function drillEnd(res, before, after, misses) {
+    return new Promise((resolve) => {
+      const perfect = !res.quit && res.correct === res.total, fair = res.correct * 2 >= res.total;
+      const again = el('button', { class: 'btn big', type: 'button', text: 'Again' });
+      const doneBtn = el('button', { class: 'btn primary big', type: 'button', text: 'Done' });
+      const fill = el('i', { style: { width: before + '%' } });
+      const modal = el('div', { class: 'modal paper bz dr-end qz-card-in', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Quick review result' },
+        el('div', { class: 'bz-head' }, el('div', { class: 'bz-top' }, el('span', { class: 'eyebrow bz-eyebrow' }, garnish('bolt', 16), 'Quick review'))),
+        el('div', { class: 'bz-result' + (perfect ? ' perfect' : '') },
+          el('span', { class: 'stamp qz-stamp ' + (perfect ? 'good' : fair ? 'mid' : 'bad'), text: perfect ? 'PERFECT' : fair ? 'NICE WORK' : 'KEEP GOING' }),
+          el('div', { class: 'display bz-score num', text: res.correct + ' / ' + res.total }),
+          el('div', { class: 'dr-ready' },
+            el('div', { class: 'dr-ready-top' }, el('span', { class: 'eyebrow', text: 'Quiz Readiness' }),
+              el('span', { class: 'dr-ready-n num' }, after === before ? el('b', { class: 'now', text: after + '%' }) : [el('span', { class: 'was', text: before + '%' }), el('span', { class: 'to', text: ' → ' }), el('b', { class: 'now', text: after + '%' })])),
+            el('div', { class: 'bar' }, fill)),
+          misses.length ? el('div', { class: 'bz-fixbox dr-fix' }, el('div', { class: 'eyebrow', text: misses.length === 1 ? 'Fix this one' : 'Fix these ' + misses.length }), reviewList(misses)) : null,
+          el('div', { class: 'row dr-actions' }, again, doneBtn)));
+      const veil = el('div', { class: 'veil qz-veil' }, modal);
+      const t0 = performance.now(); let done = false;
+      const fin = (v) => { if (done || performance.now() - t0 < 400) return; done = true; window.removeEventListener('keydown', onKey, true); sfx('click'); leave(veil, () => { veil.remove(); openCount--; resolve(v); }); };
+      const onKey = (e) => {
+        if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') { e.preventDefault(); e.stopPropagation(); if (!e.repeat) fin(false); }
+      };
+      again.addEventListener('click', () => fin(true)); doneBtn.addEventListener('click', () => fin(false));
+      window.addEventListener('keydown', onKey, true);
+      root().appendChild(veil); openCount++;
+      sfx(perfect ? 'streak' : 'card');
+      setTimeout(() => { fill.style.width = after + '%'; }, reduced() ? 0 : 250);
+      if (perfect) confetti(modal);
+      try { doneBtn.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
+    });
+  }
+  /* a closable paper sheet listing [{q, answer, explain, key}] — e.g. Quiz.runMisses() on the results screen */
+  function reviewSheet(list, title) { return serial(() => runSheet(Array.isArray(list) ? list.filter(Boolean) : [], title)); }
+  function runSheet(list, title) {
+    st();
+    return new Promise((resolve) => {
+      const closeBtn = el('button', { class: 'qz-stop', type: 'button', text: 'Close' });
+      const doneBtn = el('button', { class: 'btn primary big', type: 'button', text: 'Done' });
+      const modal = el('div', { class: 'modal paper bz rv-sheet qz-card-in', role: 'dialog', 'aria-modal': 'true', 'aria-label': title || 'Review' },
+        el('div', { class: 'qz-head' }, el('div', { class: 'display qz-header' }, el('span', { text: title || 'What to fix' })), closeBtn),
+        list.length ? reviewList(list) : el('div', { class: 'qz-q', text: 'Nothing to review. Every answer was right.' }),
+        doneBtn);
+      const veil = el('div', { class: 'veil qz-veil' }, modal);
+      let done = false;
+      const fin = () => { if (done) return; done = true; window.removeEventListener('keydown', onKey, true); sfx('click'); leave(veil, () => { veil.remove(); openCount--; resolve(); }); };
+      const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); if (!e.repeat) fin(); } };
+      closeBtn.addEventListener('click', fin); doneBtn.addEventListener('click', fin);
+      window.addEventListener('keydown', onKey, true);
+      root().appendChild(veil); openCount++;
+      sfx('card');
+    });
   }
 
   /* ================= bonus rounds ================= */
@@ -876,8 +1025,9 @@
 
   window.Quiz = {
     init, ask, reviveGauntlet, bonusRound, practiceTest, openCodex, readiness, stats, record,
+    drill, weakCount, runReset, runMisses, reviewSheet,
     isOpen: () => openCount > 0,
     kinds: Object.keys(GAMES),
-    _debug: { pickQuestion, gradeTyped, norm, fuzzy, TYPED },
+    _debug: { pickQuestion, gradeTyped, norm, fuzzy, TYPED, weakest },
   };
 })();

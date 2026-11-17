@@ -26,7 +26,7 @@
       lv: ['Flies out, grabs gems, and comes back. Hits twice.', 'Flies farther, +damage', '+1 boomerang', 'Bigger, +damage', 'Throws faster', '+1 boomerang'] },
     trail: { name: 'Powder Trail', icon: '🧨', key: 'S', max: 6,
       hook: 'Europe was a powder keg. The assassination lit the fuse.',
-      lv: ['Leaves a burning fuse trail behind you.', 'Burns longer', 'Wider flames, +damage', 'Burns longer', 'Wider flames, +damage', 'Burns hotter: +60% damage'] },
+      lv: ['Leaves a burning fuse trail behind you.', 'Burns longer', 'Wider flames, +damage', 'Burns longer', 'Wider flames, +damage', 'Burns hotter: +50% damage'] },
     aura: { name: 'Neutral Zone', icon: '🕊️', key: 'X', max: 6,
       hook: 'Isolationism: staying out of other countries\' conflicts — the USA in 1914.',
       lv: ['A keep-out zone hurts and slows enemies near you.', 'Bigger zone', '+damage, slows more', 'Bigger zone', '+damage, slows more', 'Huge zone, pushes enemies back'] },

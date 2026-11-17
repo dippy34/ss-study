@@ -132,6 +132,43 @@
 .qz-explain{margin:0;font-size:1.04rem;line-height:1.5;font-weight:700;text-wrap:pretty}
 .qz-continue{width:100%}
 
+/* ---------- quick review: stop control, progress strip, end card, review sheet ---------- */
+.qz-stop{position:relative;flex:none;font-family:var(--font-type);font-size:.74rem;letter-spacing:.14em;text-transform:uppercase;line-height:1;color:var(--paper-ink);
+  background:var(--paper-hi);border:1.5px solid var(--paper-line);border-radius:999px;padding:.72em .95em .52em;cursor:pointer;box-shadow:0 2px 0 var(--paper-edge);transition:transform .08s,border-color .12s}
+.qz-stop::after{content:"";position:absolute;inset:-9px -6px}
+.qz-stop:hover{border-color:var(--bad-ink);color:var(--bad-ink)}
+.qz-stop:active{transform:translateY(2px);box-shadow:none}
+.qz-stop:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
+.qz-prog{display:flex;align-items:center;gap:10px}
+.qz-prog-bars{flex:1;display:flex;gap:4px;min-width:0}
+.qz-prog-bars i{flex:1;height:8px;border-radius:4px;background:var(--paper-shade);min-width:0;transition:background .15s}
+.qz-prog-bars i.cur{background:var(--brass);box-shadow:0 0 0 2px var(--brass-glow)}
+.qz-prog-bars i.ok{background:var(--good-ink)}
+.qz-prog-bars i.no{background:var(--bad-ink)}
+.qz-prog .qz-pips-n{color:var(--paper-mute);margin-left:0}
+.dr-ready{align-self:stretch;text-align:left;background:var(--paper-hi);border:1.5px solid var(--paper-line);border-radius:12px;padding:10px 13px 13px;display:flex;flex-direction:column;gap:9px}
+.dr-ready-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.dr-ready-n{font-family:var(--font-display);font-size:1.4rem;line-height:1;white-space:nowrap}
+.dr-ready-n .was,.dr-ready-n .to{color:var(--paper-mute)}
+.dr-ready-n .now{font-weight:400;color:var(--good-ink)}
+.dr-ready .bar{height:10px}
+.dr-ready .bar>i{background:var(--good-ink);transition:width .7s var(--qz-ease)}
+.dr-fix{gap:12px}
+.dr-actions{align-self:stretch;flex-wrap:nowrap}
+.dr-end .dr-actions .btn{flex:1;width:auto;min-width:0;font-size:1.12rem;padding:.8em .6em}
+.rv-list{align-self:stretch;display:flex;flex-direction:column;text-align:left}
+.rv-item{display:flex;flex-direction:column;gap:9px;border-top:2px dashed var(--paper-line);padding:14px 0}
+.rv-item:first-child{border-top:0;padding-top:0}
+.rv-item:last-child{padding-bottom:0}
+.rv-q{font-weight:800;font-size:1.06rem;line-height:1.3;text-wrap:pretty}
+.rv-why{display:flex;align-items:flex-start;gap:9px;background:var(--paper-hi);border:1.5px solid var(--paper-line);border-left:6px solid var(--kc,var(--brass));border-radius:10px;padding:9px 12px}
+.bz-fixbox .rv-why{background:var(--paper)}
+.rv-why.key-m{--kc:var(--c-m)} .rv-why.key-a{--kc:var(--c-a)} .rv-why.key-i{--kc:var(--c-i)} .rv-why.key-n{--kc:var(--c-n)} .rv-why.key-s{--kc:var(--c-s)} .rv-why.key-x{--kc:var(--c-x)}
+.rv-why p{margin:0;font-size:.98rem;line-height:1.45;font-weight:700;min-width:0}
+.rv-why .qz-ico,.rv-why .qz-medal{margin-top:.05em}
+.rv-sheet .qz-head{padding-bottom:12px}
+.rv-sheet>.btn{width:100%}
+
 /* ---------- bonus rounds ---------- */
 .bz-head{display:flex;flex-direction:column;gap:5px}
 .bz-top{display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:20px}

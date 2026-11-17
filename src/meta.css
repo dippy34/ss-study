@@ -13,6 +13,7 @@
   --mt-spot:rgba(242,187,61,.2);
   --mt-veil-top:rgba(12,25,36,.3); --mt-veil-mid:rgba(12,25,36,.7); --mt-veil-bot:rgba(12,25,36,.93);
   --mt-good-ink:#1b7a4a;
+  --mt-paper-deep:#a08854;
   --mt-ease:cubic-bezier(.2,.9,.3,1);
 }
 .mt-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
@@ -109,6 +110,19 @@
 .mt-ready-pct{font-size:clamp(2rem,9.5vw,2.7rem);line-height:.95;white-space:nowrap;color:var(--paper-ink)}
 .mt-ready-pct.lv-lo{color:var(--stamp)} .mt-ready-pct.lv-hi,.mt-ready-pct.lv-full{color:var(--mt-good-ink)}
 .mt-bar-big{height:18px;box-shadow:inset 0 2px 3px var(--mt-shade)}
+/* paper you can press: the report card (tap = Quick Review) and the "missed" row on the results */
+.mt-pbtn{appearance:none;-webkit-appearance:none;font:inherit;text-align:left;width:100%;margin:0;cursor:pointer;-webkit-tap-highlight-color:transparent;
+  box-shadow:0 4px 0 var(--mt-paper-deep),0 10px 22px var(--mt-drop);transition:transform .08s,box-shadow .08s,border-color .18s}
+.mt-pbtn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--mt-paper-deep),0 4px 10px var(--mt-drop)}
+.mt-pbtn:focus-visible{outline:3px solid var(--brass);outline-offset:3px}
+.mt-ready-go,.mt-missed{font-size:.82rem;font-weight:700;line-height:1.25}
+.mt-ready-go{display:flex;align-items:center;gap:10px}
+.mt-ready-go .t,.mt-missed .t{flex:1;min-width:0;text-wrap:balance}
+.mt-ready-go b,.mt-missed b{font-weight:900}
+.mt-ready-go .s{display:none}
+@media (max-width:380px){.mt-ready-go .l{display:none} .mt-ready-go .s{display:inline}}
+.mt-caret{flex:none;display:block;width:9px;height:9px;margin-right:4px;color:var(--paper-ink);border:solid currentColor;border-width:3px 3px 0 0;border-radius:1px;
+  transform:rotate(45deg);opacity:.65;transition:transform .18s var(--mt-ease)}
 
 .mt-menu{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .btn.mt-tile3{flex-direction:column;gap:7px;padding:.65em .3em .6em;font-size:.86rem;min-height:78px;border-radius:16px;
@@ -124,6 +138,10 @@
   .mt-word .w1{font-size:clamp(1.9rem,12vh,2.8rem)} .mt-word .w2{font-size:clamp(2.9rem,18.5vh,4.3rem)}
   .btn.mt-tile3{min-height:60px;padding-block:.45em}
   .mt-title{padding-block:10px}
+  .mt-ready{padding-block:9px 11px;gap:7px}
+}
+/* short phones: keep the whole title on one screen */
+@media (orientation:portrait) and (max-height:660px){
   .mt-ready{padding-block:9px 11px;gap:7px}
 }
 /* big screens: let the poster breathe */
@@ -328,6 +346,9 @@
 .mt-res-wallet{display:flex;flex-direction:column;gap:4px;align-items:flex-end}
 .mt-res-ready{box-shadow:none}
 .mt-res-ready .mt-ready-pct{font-size:clamp(1.6rem,7.5vw,2.3rem)}
+.mt-missed{display:flex;align-items:center;gap:10px;min-height:48px;padding:8px 14px;border-radius:14px;font-size:.92rem;box-shadow:0 3px 0 var(--mt-paper-deep)}
+.mt-missed:active{transform:translateY(2px);box-shadow:0 1px 0 var(--mt-paper-deep)}
+.mt-missed b{color:var(--stamp)}
 .mt-news{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;perspective:700px}
 @keyframes mt-flip{from{transform:rotateX(-80deg);opacity:0}to{transform:none;opacity:1}}
 .mt-news li{position:relative;overflow:hidden;display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:14px;background:var(--ink-2);border:1px solid var(--brass);
@@ -347,6 +368,8 @@
 .mt-confetti{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:3}
 
 @media (hover:hover){
+  .mt-pbtn:hover{border-color:var(--brass)}
+  .mt-pbtn:hover .mt-caret{transform:translateX(3px) rotate(45deg);opacity:.85}
   .mt-rb:hover{border-color:var(--kc)}
   .mt-up:hover,.mt-ach:hover{border-color:var(--fg-mute)}
   .mt-up.is-max:hover,.mt-ach.is-done:hover{border-color:var(--brass)}
