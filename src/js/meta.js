@@ -15,6 +15,10 @@
   let shownReady = null;   // readiness % the title last showed (the bar grows from here)
   let lastHeroSize = 0;
   let studyOpen = false;   // a Quick Review or a "missed" sheet that we opened is still on screen
+  let keysLast = false;    // the last input came from the keyboard (then focus follows the player from page to page)
+  let navFrom = null;      // {from, key}: the control just pressed, if it leads to another page
+  const openedBy = {};     // page name -> {from, key}: where focus goes back to when that page closes
+  let helpFrom = null;     // what had focus when How to Play opened
   let studyAt = 0;
 
   /* ------------------------------------------------------------------ data */
@@ -121,8 +125,28 @@
   const audio = (fn, v) => { try { window.AudioSys && AudioSys[fn] && AudioSys[fn](v); } catch (e) {} };
   const n0 = (v) => (typeof v === 'number' && isFinite(v) ? v : 0);
   const fmt = (n) => Math.round(n0(n)).toLocaleString('en-US');
+  const fmtDur = (sec) => { const m = Math.round(n0(sec) / 60); return m < 60 ? m + ' min' : Math.floor(m / 60) + ' h ' + (m % 60) + ' min'; };
   const charById = (id) => CHARS.find((c) => c.id === id) || CHARS[0];
-  const toast = (html, opts) => { try { window.Toast && Toast.show(html, opts); } catch (e) {} };
+  /* Meta's toasts go up one at a time: news (awards, unlocks) waits its turn, feedback for a tap replaces what is up */
+  const TQ = { q: [], el: null, timer: 0 };
+  function showToast(html, opts) {
+    const host = document.getElementById('toasts');
+    if (TQ.el && TQ.el.isConnected) TQ.el.remove();
+    clearTimeout(TQ.timer);
+    const before = host ? host.lastElementChild : null;
+    try { window.Toast && Toast.show(html, opts); } catch (e) {}
+    const el = host ? host.lastElementChild : null;
+    TQ.el = el && el !== before ? el : null;
+    if (opts.sfx) sfx(opts.sfx);
+    TQ.timer = setTimeout(() => { TQ.timer = 0; TQ.el = null; pumpToast(); }, (opts.ms || 2200) + 380);
+  }
+  function pumpToast() { if (!TQ.timer && TQ.q.length) { const t = TQ.q.shift(); showToast(t[0], t[1]); } }
+  function toast(html, opts) {
+    opts = opts || {};
+    if (opts.kind === 'bad' || opts.now) { showToast(html, opts); return; }
+    TQ.q.push([html, opts]); if (TQ.q.length > 3) TQ.q.splice(0, TQ.q.length - 3);
+    pumpToast();
+  }
   const calm = () => { try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { return false; } };
   const gameOn = () => { try { return !!(window.Game && Game.isRunning && Game.isRunning()); } catch (e) { return false; } };
   const quizBusy = () => { try { return !!(window.Quiz && Quiz.isOpen && Quiz.isOpen()); } catch (e) { return false; } };
@@ -170,14 +194,14 @@
   function btn(label, cls, fn, attrs) {
     const b = U.el('button', Object.assign({ type: 'button', class: 'btn ' + (cls || '') }, attrs || {}));
     (Array.isArray(label) ? label : [label]).forEach((n) => { if (n != null && n !== false) b.append(n); });
-    b.addEventListener('click', (e) => { if (covered()) return; if (!b.dataset.quiet) sfx('click'); if (fn) fn(e, b); });
+    b.addEventListener('click', (e) => { if (covered()) return; navFrom = b.dataset.nav ? { from: current, key: b.dataset.nav } : null; if (!b.dataset.quiet) sfx('click'); if (fn) fn(e, b); });
     return b;
   }
   /* a plain <button> with its own look (not the .btn slab) */
   function tap(cls, kids, fn, attrs) {
     const b = U.el('button', Object.assign({ type: 'button', class: cls }, attrs || {}));
     (Array.isArray(kids) ? kids : [kids]).forEach((n) => { if (n != null && n !== false) b.append(n); });
-    b.addEventListener('click', (e) => { if (covered()) return; if (!b.dataset.quiet) sfx('click'); if (fn) fn(e, b); });
+    b.addEventListener('click', (e) => { if (covered()) return; navFrom = b.dataset.nav ? { from: current, key: b.dataset.nav } : null; if (!b.dataset.quiet) sfx('click'); if (fn) fn(e, b); });
     return b;
   }
 
@@ -215,7 +239,15 @@
   function replay(el, cls) { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
 
   /* ---- living portraits: ONE shared animation loop, alive only while portraits are on screen ---- */
-  const PORT = { list: [], raf: 0, nap: 0 };
+  const PORT = { list: [], raf: 0, nap: 0, watch: false };
+  const modalsUp = () => { const m = document.getElementById('modals'); return !!(m && m.childElementCount > 0); };
+  const hiddenNow = () => modalsUp() || !!helpVeil;        // something lies over the page we are showing
+  /* called whenever a cover appears or goes: freeze / unfreeze what moves on the title */
+  function coverSync() {
+    const r = root(), t = r ? r.querySelector('.mt-title') : null, on = hiddenNow();
+    if (t) t.classList.toggle('mt-paused', on);
+    if (!on) portKick();
+  }
   const canDraw = () => !!(window.PK && PK.portrait && PK.portrait.hero);
   function drawPort(e, t) {
     try { PK.portrait.hero(e.cv, e.ch, t, { size: e.size, moving: e.moving, faceX: e.faceX }); }
@@ -227,7 +259,9 @@
     if (gameOn()) { portStop(); return; }                    // a run owns every frame: nothing of ours draws
     PORT.list = PORT.list.filter((e) => e.live && e.cv.isConnected);
     if (!PORT.list.length) return;
-    if (covered()) { clearTimeout(PORT.nap); PORT.nap = setTimeout(portKick, 400); return; }   // hold still behind a question card
+    /* covered (help, a question card, Study Notes, the Practice Test): stand still. coverSync() starts us again;
+       only without a MutationObserver do we look again now and then */
+    if (hiddenNow()) { if (!PORT.watch) { clearTimeout(PORT.nap); PORT.nap = setTimeout(portKick, 400); } return; }
     const t = performance.now() / 1000;
     for (let i = 0; i < PORT.list.length; i++) drawPort(PORT.list[i], t);
     PORT.raf = requestAnimationFrame(portTick);
@@ -278,13 +312,25 @@
   /* ---- screens ---- */
   function mount(screen, name, back) {
     const r = root(); if (!r) return;
-    if (current !== name) screen.classList.add('mt-in');     // re-rendering the same screen: no second entrance
-    current = name; backFn = back || null; helpVeil = null;
+    const prev = current, was = document.activeElement && r.contains(document.activeElement) ? document.activeElement : null;
+    const wasId = was && was.id, wasNav = was && was.dataset ? was.dataset.nav : '';
+    if (prev !== name) screen.classList.add('mt-in');        // re-rendering the same screen: no second entrance
+    if (navFrom && navFrom.from === prev && prev !== name) openedBy[name] = navFrom;
+    navFrom = null;
+    current = name; backFn = back || null; helpVeil = null; helpFrom = null;
     r.replaceChildren(screen);
     screen.scrollTop = 0;
+    /* focus never stays on a page that is gone */
+    let target = null;
+    const ob = prev && prev !== name ? openedBy[prev] : null;
+    if (ob && ob.from === name) { if (keysLast) target = screen.querySelector('[data-nav="' + ob.key + '"]'); delete openedBy[prev]; }
+    else if (prev === name && keysLast) target = (wasId && document.getElementById(wasId)) || (wasNav && screen.querySelector('[data-nav="' + wasNav + '"]')) || null;
+    screen.setAttribute('tabindex', '-1');
+    try { (target || screen).focus({ preventScroll: true }); } catch (e) {}
+    coverSync();
   }
-  function clearScreens() { const r = root(); if (r) r.replaceChildren(); current = null; backFn = null; helpVeil = null; portStop(); }
-  function goBack() { if (backFn) backFn(); else showTitle(); }
+  function clearScreens() { const r = root(); if (r) r.replaceChildren(); current = null; backFn = null; helpVeil = null; helpFrom = null; navFrom = null; portStop(); }
+  function goBack() { navFrom = null; if (backFn) backFn(); else showTitle(); }
   function subScreen(name, title, back, body, opts) {
     opts = opts || {};
     const head = U.el('div', { class: 'mt-head' },
@@ -369,7 +415,7 @@
     }
     if (got.length) {
       Save.commit();
-      if (!silent) got.forEach((ch, i) => setTimeout(() => { toast('New character unlocked: <b>' + U.esc(ch.name) + '</b>', { kind: 'good', ms: 3200 }); sfx('unlock'); }, 300 + i * 900));
+      if (!silent) toast(got.length === 1 ? 'New character unlocked: <b>' + U.esc(got[0].name) + '</b>' : '<b>' + got.length + ' new characters</b> unlocked', { kind: 'good', ms: 3000, sfx: 'unlock' });
     }
     return got;
   }
@@ -383,9 +429,9 @@
     if (got.length) {
       Save.commit(); refreshWallets();
       if (!silent) {
-        /* one or two get their own toast; a pile of them gets one calm summary */
-        if (got.length <= 2) got.forEach((a, i) => setTimeout(() => { toast('Award: <b>' + U.esc(a.name) + '</b> +' + a.coins + ' coins', { kind: 'good', ms: 2800 }); sfx('unlock'); }, 200 + i * 900));
-        else { const sum = got.reduce((t, a) => t + a.coins, 0); setTimeout(() => { toast('<b>' + got.length + ' awards earned</b> +' + fmt(sum) + ' coins', { kind: 'good', ms: 3200 }); sfx('unlock'); }, 200); }
+        /* one award gets its own toast; several get one calm summary */
+        if (got.length === 1) toast('Award: <b>' + U.esc(got[0].name) + '</b> +' + got[0].coins + ' coins', { kind: 'good', ms: 2800, sfx: 'unlock' });
+        else { const sum = got.reduce((t, a) => t + a.coins, 0); toast('<b>' + got.length + ' awards earned</b> +' + fmt(sum) + ' coins', { kind: 'good', ms: 3000, sfx: 'unlock' }); }
       }
     }
     return got;
@@ -443,7 +489,12 @@
     }
     return w;
   }
-  function heroSize() { const w = window.innerWidth || 390, h = window.innerHeight || 720; return Math.round(U.clamp(Math.min(w * 0.33, h * 0.165), 84, 156)); }
+  /* short phones get a smaller hero so the whole title (danger stepper included) stays on one screen */
+  function heroSize() {
+    const w = window.innerWidth || 390, h = window.innerHeight || 720, tall = h >= w;
+    const k = !tall ? 0.165 : h <= 600 ? 0.12 : h <= 700 ? 0.14 : h <= 780 ? 0.15 : 0.165;
+    return Math.round(U.clamp(Math.min(w * 0.33, h * k), tall && h <= 700 ? 60 : 84, 156));
+  }
   /* ---- study shortcuts. Quiz may not offer them yet: then the entry points simply are not there ---- */
   const canDrill = () => !!(window.Quiz && typeof Quiz.drill === 'function');
   const canSheet = () => !!(window.Quiz && typeof Quiz.reviewSheet === 'function' && typeof Quiz.runMisses === 'function');
@@ -492,7 +543,7 @@
     const done = () => {
       studyOpen = false;
       if (current !== 'results') return;
-      resultsAt = performance.now(); portKick();
+      resultsAt = performance.now() - 550; portKick();       // a blink, so a held Enter does not fire the button under it
       if (U.isTouch()) return;
       const t = keys && b && b.isConnected ? b : document.getElementById('mt-again');
       if (t) t.focus({ preventScroll: true });
@@ -524,14 +575,18 @@
     const val = U.el('b', { class: 'num' }), note = U.el('span');
     const dn = btn('−', 'small', () => { M.danger = Math.max(0, M.danger - 1); Save.commit(); sync(); }, { 'aria-label': 'Lower danger' });
     const up = btn('+', 'small', () => { M.danger = Math.min(M.maxDanger, M.danger + 1); Save.commit(); sync(); }, { 'aria-label': 'Raise danger' });
+    const box = U.el('div', { class: 'mt-danger' });
     function sync() {
-      val.textContent = 'Danger +' + M.danger;
-      note.textContent = M.danger ? 'Tougher monsters, more coins' : 'Normal difficulty';
+      const on = M.danger > 0;
+      box.classList.toggle('is-zero', !on);
+      val.textContent = on ? 'Danger +' + M.danger : 'Normal difficulty';
+      note.textContent = on ? 'Tougher monsters, more coins' : 'Raise the danger for more coins';
       if (M.danger <= 0) dn.setAttribute('disabled', ''); else dn.removeAttribute('disabled');
       if (M.danger >= M.maxDanger) up.setAttribute('disabled', ''); else up.removeAttribute('disabled');
     }
+    box.append(dn, U.el('div', { class: 'v' }, U.el('div', { class: 'r' }, ico('flame', 18), val), note), up);
     sync();
-    return U.el('div', { class: 'mt-danger' }, dn, U.el('div', { class: 'v' }, U.el('div', { class: 'r' }, ico('flame', 18), val), note), up);
+    return box;
   }
   function showTitle() {
     if (!M) init();
@@ -543,25 +598,25 @@
       U.el('span', { class: 'mt-plate-bar' },
         U.el('span', { class: 't' }, U.el('b', { text: c.name }), U.el('span', { class: 'w' }, ico(c.startWeapon, 16), U.el('span', { text: WEAPONS[c.startWeapon] }))),
         U.el('span', { class: 'go' }, ico('swap', 16), U.el('span', { text: 'Change' })))],
-      showChars, { 'aria-label': 'Character: ' + c.name + '. Change character' });
+      showChars, { 'aria-label': 'Character: ' + c.name + '. Change character', dataset: { nav: 'chars' } });
     plate.style.setProperty('--hs', hs + 'px');
-    const tile3 = (icon, label, fn) => btn([U.el('span', { class: 'ic' }, ico(icon, 30)), U.el('span', { class: 'lb', text: label })], 'mt-tile3', fn);
+    const tile3 = (icon, label, fn, nav) => btn([U.el('span', { class: 'ic' }, ico(icon, 30)), U.el('span', { class: 'lb', text: label })], 'mt-tile3', fn, { dataset: { nav } });
     const from = shownReady == null ? null : shownReady; shownReady = r.overall;
     const still = current === 'title';                   // refreshing in place (e.g. after a Quick Review)
     const wrap = U.el('div', { class: 'wrap' },
       U.el('div', { class: 'mt-top' }, walletEl(),
         U.el('div', { class: 'mt-top-r' },
-          btn([ico('trophy', 22), U.el('span', { class: 'mt-sr', text: 'Awards ' }), U.el('span', { class: 'num mt-count', text: earned + '/' + ACH.length })], 'small mt-topbtn', showAchievements, { 'aria-label': 'Awards: ' + earned + ' of ' + ACH.length + ' earned', title: 'Awards' }),
-          btn([ico('gear', 22), U.el('span', { class: 'mt-sr', text: 'Settings' })], 'small mt-topbtn', showSettings, { 'aria-label': 'Settings', title: 'Settings' }))),
+          btn([ico('trophy', 22), U.el('span', { class: 'mt-sr', text: 'Awards ' }), U.el('span', { class: 'num mt-count', text: earned + '/' + ACH.length })], 'small mt-topbtn', showAchievements, { 'aria-label': 'Awards: ' + earned + ' of ' + ACH.length + ' earned', title: 'Awards', dataset: { nav: 'awards' } }),
+          btn([ico('gear', 22), U.el('span', { class: 'mt-sr', text: 'Settings' })], 'small mt-topbtn', showSettings, { 'aria-label': 'Settings', title: 'Settings', dataset: { nav: 'settings' } }))),
       U.el('div', { class: 'mt-stage' }, wordmark(), plate),
       U.el('div', { class: 'mt-deck' },
         btn('PLAY', 'primary big mt-play', startRun, { id: 'mt-play' }),
         M.maxDanger > 0 ? dangerStepper() : null,
         readyCard(r, from, still),
         U.el('div', { class: 'mt-menu' },
-          tile3('shop', 'Upgrades', () => showShop(showTitle)),
-          tile3('pencil', 'Practice Test', openPractice),
-          tile3('book', 'Study Notes', openCodex))));
+          tile3('shop', 'Upgrades', () => showShop(showTitle), 'shop'),
+          tile3('pencil', 'Practice Test', openPractice, 'practice'),
+          tile3('book', 'Study Notes', openCodex, 'codex'))));
     mount(U.el('div', { class: 'screen mt-title' }, wrap), 'title', null);
     music('menu');
     if (from != null && from < 100 && r.overall >= 100) setTimeout(confetti, 300);
@@ -582,11 +637,20 @@
   }
 
   /* --------------------------------------------------------------- HOW TO PLAY */
-  function closeHelp() { if (helpVeil) { helpVeil.remove(); helpVeil = null; const p = document.getElementById('mt-play'); if (p && !U.isTouch()) p.focus(); } }
+  function closeHelp() {
+    if (!helpVeil) return;
+    const r = root(), under = r ? r.querySelector('.screen') : null, back = helpFrom;
+    helpVeil.remove(); helpVeil = null; helpFrom = null;
+    if (under) { under.inert = false; under.removeAttribute('aria-hidden'); }
+    coverSync();
+    const t = back && back.isConnected ? back : document.getElementById('mt-play') || under;
+    if (t && (keysLast || !U.isTouch())) { try { t.focus({ preventScroll: true }); } catch (e) {} }
+  }
   function showHelp() {
     if (helpVeil) return;
+    navFrom = null;
     const rows = [
-      ['person', 'Move', 'Use WASD or the arrow keys. On a phone, drag anywhere on the screen.'],
+      ['person', 'Move', U.isTouch() ? 'Drag anywhere on the screen to move. Keyboard: WASD or the arrow keys.' : 'Use WASD or the arrow keys to move.'],
       ['bolt', 'Fight', 'Your weapons fire by themselves. Just keep moving and do not get cornered.'],
       ['xp', 'Level up', 'Grab the gems monsters drop to level up.'],
       ['pencil', 'Answer', 'Every level-up asks one study-guide question. Get it right and you pick your upgrade.'],
@@ -599,8 +663,13 @@
         U.el('h2', { class: 'display mt-h2', text: 'How to play' }),
         U.el('ol', { class: 'mt-howto' }, rows.map(([ic, tag, text]) => U.el('li', null, U.el('span', { class: 'mt-how-ic' }, ico(ic, 26)), U.el('span', { class: 'mt-how-t' }, U.el('b', { class: 'mt-tag', text: tag }), U.el('span', { text }))))),
         U.el('div', { class: 'row mt-center' }, ok)));
+    const under = root().querySelector('.screen'), a = document.activeElement;
+    helpFrom = a && under && under.contains(a) && a !== under ? a : null;
     root().appendChild(helpVeil);
-    if (!U.isTouch()) ok.focus();
+    if (under) { under.inert = true; under.setAttribute('aria-hidden', 'true'); }   // nothing behind the briefing can be reached
+    coverSync();
+    const modal = helpVeil.firstElementChild; modal.setAttribute('tabindex', '-1');
+    try { (keysLast || !U.isTouch() ? ok : modal).focus({ preventScroll: true }); } catch (e) {}
   }
 
   /* --------------------------------------------------------------- AGENTS (characters) */
@@ -620,7 +689,7 @@
         action = btn([U.el('span', { text: 'Unlock' }), coinTag(ch.unlock.cost)], 'big ' + (M.coins >= ch.unlock.cost ? 'primary' : 'mt-cant'), () => {
           if (M.coins < ch.unlock.cost) { sfx('error'); shake(detail); toast('You need ' + fmt(ch.unlock.cost - M.coins) + ' more coins.', { kind: 'bad', ms: 1600 }); return; }
           M.coins -= ch.unlock.cost; M.chars[ch.id] = true; M.char = ch.id; Save.commit(); sfx('buy');
-          toast('<b>' + U.esc(ch.name) + '</b> joined your squad!', { kind: 'good' });
+          toast('<b>' + U.esc(ch.name) + '</b> joined your squad!', { kind: 'good', now: true });
           checkAll(false); showChars(ch.id); refreshWallets(true);
         }, { dataset: { quiet: '1' } });
       } else action = U.el('div', { class: 'mt-state lock' }, ico('lock', 20), U.el('span', { class: 'grow' }, U.el('b', { text: ch.unlock.text }), U.el('span', { text: featProgress(ch.unlock.feat, c) })));
@@ -725,7 +794,7 @@
         U.el('div', { class: 'mt-tiles c6' },
           tile('Runs played', fmt(st.runs)), tile('Wins', fmt(st.wins)), tile('Furthest act', st.bestAct ? st.bestAct + ' · ' + ACT_NAMES[U.clamp(st.bestAct, 1, 5)] : 'None yet'),
           tile('Longest run', U.fmtTime(st.bestTime)), tile('Highest level', fmt(st.bestLevel)), tile('Best score', fmt(st.bestScore)),
-          tile('Monsters defeated', fmt(st.kills)), tile('Bosses defeated', fmt(st.bossKills)), tile('Time played', U.fmtTime(st.playSeconds)),
+          tile('Monsters defeated', fmt(st.kills)), tile('Bosses defeated', fmt(st.bossKills)), tile('Time played', fmtDur(st.playSeconds)),
           tile('Coins earned, all time', fmt(M.totalCoins)), tile('Highest danger unlocked', '+' + M.maxDanger),
           tile('Awards', ACH.filter((a) => M.ach[a.id]).length + ' / ' + ACH.length))));
     subScreen('stats', 'Stats', typeof back === 'function' ? back : showTitle, body, { noWallet: true });
@@ -748,14 +817,14 @@
       b.addEventListener('click', () => { const v = b.getAttribute('aria-checked') !== 'true'; b.setAttribute('aria-checked', v ? 'true' : 'false'); on(v); sfx('click'); });
       return U.el('div', { class: 'mt-set-row' }, U.el('div', { class: 'grow' }, U.el('label', { for: id, text: label }), hint ? U.el('div', { class: 'mt-hint mute', text: hint }) : null), b);
     };
-    const nav = (icon, label, fn, id) => btn([ico(icon, 24), U.el('span', { class: 'grow', text: label }), U.el('span', { class: 'mt-chev', 'aria-hidden': 'true', text: '›' })], 'mt-nav', fn, { id });
+    const nav = (icon, label, fn, id) => btn([ico(icon, 24), U.el('span', { class: 'grow', text: label }), U.el('span', { class: 'mt-chev', 'aria-hidden': 'true', text: '›' })], 'mt-nav', fn, { id, dataset: { nav: id } });
     const confirmRow = U.el('div', { class: 'mt-confirm', hidden: true },
       U.el('p', { text: 'This erases your coins, upgrades, characters, awards AND your Quiz Readiness. It can not be undone.' }),
       U.el('div', { class: 'row' },
         btn('Yes, erase everything', 'danger', () => {
           Save.reset();
           try { location.reload(); } catch (e) {}
-          setTimeout(() => { M = null; shownReady = null; try { window.Quiz && Quiz.init && Quiz.init(); } catch (e) {} init(); showTitle(); toast('Progress erased.', { ms: 1800 }); }, 600);
+          setTimeout(() => { M = null; shownReady = null; try { window.Quiz && Quiz.init && Quiz.init(); } catch (e) {} init(); showTitle(); toast('Progress erased.', { ms: 1800, now: true }); }, 600);
         }, { id: 'mt-reset-yes' }),
         btn('Keep my progress', '', () => { confirmRow.hidden = true; resetBtn.hidden = false; })));
     const resetBtn = btn('Reset all progress', 'small ghost mt-reset', () => { confirmRow.hidden = false; resetBtn.hidden = true; }, { id: 'mt-reset' });
@@ -791,7 +860,7 @@
     const win = !!s.won, act = U.clamp(n0(s.act) | 0 || 1, 1, 5), answered = n0(s.correct) + n0(s.wrong);
     const hero = CHARS.find((c) => c.id === s.charId) || charById(M.char);
     const head = U.el('header', { class: 'mt-res-head ' + (win ? 'win' : 'loss') },
-      U.el('div', { class: 'stamp', text: win ? (s.endless ? 'Endless run' : 'Victory') : x.best ? 'New best run' : 'Act ' + act + ' of 5' }),
+      win || x.best ? U.el('div', { class: 'stamp', text: win ? (s.endless ? 'Endless run' : 'Victory') : 'New best run' }) : null,   // the act is said once, under the medals
       U.el('h1', { class: 'display mt-res-title', text: win ? 'POWDER KEG DEFUSED' : 'RUN OVER' }),
       U.el('div', { class: 'mt-res-hero' }, heroCanvas(hero, [174, 116], { moving: win })),
       actMedals(act, win),
@@ -823,26 +892,35 @@
     x.chars.forEach((c) => news.push(U.el('li', { class: 'char' }, U.el('span', { class: 'mt-news-ic' }, heroCanvas(c, 40, { live: false })), U.el('div', { class: 'grow' }, U.el('b', { text: 'New agent: ' + c.name }), U.el('span', { text: 'Starts with ' + WEAPONS[c.startWeapon] + '.' })))));
     x.ach.forEach((a) => news.push(U.el('li', null, U.el('span', { class: 'mt-news-ic' }, ico(a.ic || 'medal', 28)), U.el('div', { class: 'grow' }, U.el('b', { text: a.name }), U.el('span', { text: a.desc })), coinTag(a.coins, '+'))));
     news.forEach((li, i) => li.style.setProperty('--i', String(Math.min(i, 8))));
-    const again = btn('Play Again', 'primary', startRun, { id: 'mt-again' });
+    /* the first 0.8 s belong to whoever was still mashing keys or the screen when the run ended */
+    const settled = (fn) => () => { if (performance.now() - resultsAt < 800) return; sfx('click'); fn(); };
+    const again = btn('Play Again', 'primary', settled(startRun), { id: 'mt-again', dataset: { quiet: '1' } });
     const wrap = U.el('div', { class: 'wrap' }, U.el('div', { class: 'mt-res-cols' }, head, U.el('div', { class: 'mt-res-r' },
       U.el('div', { class: 'mt-tiles mt-res-tiles' },
         tile('Time', U.fmtTime(n0(s.time)), 'clock'), tile('Monsters', fmt(s.kills), 'skull'),
         tile('Answers right', answered ? fmt(s.correct) + '/' + fmt(answered) : '0', 'check'), tile('Score', fmt(s.score), 'star')),
       U.el('details', { class: 'mt-more' }, U.el('summary', { text: 'More from this run' }),
         U.el('div', { class: 'mt-tiles mt-res-tiles' },
-          tile('Level', fmt(s.level)), tile('Bosses beaten', fmt(s.bossKills)), tile('Best streak', fmt(s.bestStreak)), tile('Act reached', act + '/5'))),
+          tile('Level', fmt(s.level)), tile('Bosses beaten', fmt(s.bossKills)), tile('Best streak', fmt(s.bestStreak)), tile('Damage taken', fmt(s.damageTaken)))),
       coinBox, readyBox, missRow,
       news.length ? U.el('section', { class: 'col' }, U.el('h2', { class: 'eyebrow mt-sec', text: 'New this run' }), U.el('ul', { class: 'mt-news' }, news)) : null)),
-      U.el('div', { class: 'mt-res-actions' }, again, btn('Upgrades', '', () => showShop(() => showResults(s, x))), btn('Menu', '', showTitle)));
-    mount(U.el('div', { class: 'screen mt-sub mt-results ' + (win ? 'is-win' : 'is-loss') }, wrap), 'results', showTitle);
-    resultsAt = performance.now();
+      U.el('div', { class: 'mt-res-actions' }, again,
+        btn('Upgrades', '', settled(() => showShop(() => showResults(s, x))), { dataset: { quiet: '1', nav: 'shop' } }),
+        btn('Menu', '', settled(showTitle), { dataset: { quiet: '1' } })));
+    const sc = U.el('div', { class: 'screen mt-sub mt-results ' + (win ? 'is-win' : 'is-loss') }, wrap);
+    mount(sc, 'results', showTitle);
+    const hold = x.fresh ? 800 : 250;                    // straight after a run: 0.8 s; back from the shop: a blink
+    resultsAt = performance.now() - (800 - hold);
     if (x.fresh) {
       countUp(coinsEl, x.coins, 900);
       if (win || (x.readyBefore < 100 && x.readyAfter >= 100)) setTimeout(confetti, 250);
       x.fresh = false;                                   // coming back from the shop: no second celebration
     } else coinsEl.textContent = '+' + fmt(x.coins);
     shownReady = x.readyAfter;
-    if (!U.isTouch()) again.focus({ preventScroll: true });
+    if (!U.isTouch()) setTimeout(() => {
+      const a = document.activeElement;
+      if (current === 'results' && again.isConnected && !covered() && (!a || a === document.body || a === sc)) again.focus({ preventScroll: true });
+    }, hold + 40);
   }
   function onRunEnd(summary) {
     if (!M) init();
@@ -904,7 +982,11 @@
     M.maxDanger = U.clamp(n0(M.maxDanger) | 0, 0, MAX_DANGER); M.danger = U.clamp(n0(M.danger) | 0, 0, M.maxDanger);
     if (!keysOn) {
       keysOn = true; document.addEventListener('keydown', onKey);
+      document.addEventListener('keydown', () => { keysLast = true; }, true);
+      document.addEventListener('pointerdown', () => { keysLast = false; }, true);
       document.addEventListener('visibilitychange', () => { if (!document.hidden) portKick(); });
+      /* Study Notes, the Practice Test and every question card live in #modals: the title stands still under them */
+      try { const m = document.getElementById('modals'); if (m && window.MutationObserver) { new MutationObserver(coverSync).observe(m, { childList: true }); PORT.watch = true; } } catch (e) {}
       window.addEventListener('resize', onResize);
     }
     checkAll(false);

@@ -1,16 +1,30 @@
 /* quiz.css — question telegram, bonus rounds, practice test, study notes. Builds on base.css tokens.
    Look: a telegram form on cream paper. Calm by default; motion only at the moment something is judged. */
 :root{
-  --good-ink:#1b7a48; --bad-ink:#b3301b; --good-soft:#c9efd8; --bad-soft:#f9d2ca;
+  --good-ink:#14633a; --bad-ink:#a82b17; --good-soft:#c9efd8; --bad-soft:#f9d2ca;
   --paper-hi:#fff8e3; --paper-shade:rgba(90,60,20,.16); --paper-edge:rgba(90,60,20,.3); --brass-line:#b98a12;
-  --mid-ink:#8a5a00; --ok-glow:rgba(27,122,72,.4); --no-glow:rgba(179,48,27,.36); --brass-glow:rgba(242,187,61,.6); --clear:rgba(255,248,227,0);
-  --side-allied:#1c8f86; --side-central:#3b3027; --side-neutral:#8c9aa3;
+  --mid-ink:#7a4f00; --ok-glow:rgba(20,99,58,.4); --no-glow:rgba(168,43,23,.36); --brass-glow:rgba(242,187,61,.6); --clear:rgba(255,248,227,0);
+  --side-allied:#157a72; --side-central:#3b3027; --side-neutral:#8c9aa3;
   --qz-ease:cubic-bezier(.2,.9,.25,1); --qz-pop:cubic-bezier(.2,1.5,.4,1);
 }
 [hidden]{display:none!important}
+/* muted ink on paper: dark enough for 4.5:1 even at the darker foot of a card */
+.qz,.bz,.pt-card,.cx-sec{--paper-mute:#5e4d39}
 
 /* ---------- shared: veil, card, icons, stamps ---------- */
-.qz-veil{z-index:5;animation:qz-fade-in .15s both}
+.qz-veil{z-index:5;flex-direction:column;align-items:center;justify-content:flex-start;animation:qz-fade-in .15s both}
+.qz-veil>.modal{flex:none}
+.pt,.cx-screen{outline:none}
+/* a card taller than the screen: fade + tag pinned to the bottom edge until he has scrolled to the end */
+.qz-more{position:sticky;bottom:0;z-index:4;align-self:stretch;flex:none;height:0;pointer-events:none}
+.qz-more::before{content:"";position:absolute;left:calc(-1 * var(--gutter-l));right:calc(-1 * var(--gutter-r));bottom:0;height:88px;background:linear-gradient(180deg,rgba(6,13,20,0),rgba(6,13,20,.88))}
+.qz-more>span{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);display:inline-flex;align-items:center;gap:.55em;white-space:nowrap;
+  font:800 .82rem/1 var(--font-body);color:var(--brass-ink);background:var(--brass);border:2px solid var(--brass-line);border-radius:999px;padding:.55em .95em;box-shadow:0 4px 14px rgba(0,0,0,.5)}
+.qz-more>span::after{content:"";width:.46em;height:.46em;border-right:2.5px solid currentColor;border-bottom:2.5px solid currentColor;transform:translateY(-.14em) rotate(45deg)}
+/* a button row pinned to the bottom of its card: it stays on screen however tall the card is */
+.qz-foot{position:sticky;bottom:0;z-index:2;display:flex;gap:10px;margin:-4px -8px -8px;padding:12px 8px 8px;border-radius:0 0 10px 10px;
+  background:repeating-linear-gradient(0deg,rgba(120,90,40,.045) 0 1px,transparent 1px 4px),linear-gradient(180deg,var(--clear),var(--paper-2) 12px)}
+.qz-foot>.btn{flex:1;width:auto;min-width:0}
 .qz-veil.qz-out,.screen.qz-out{animation:qz-fade-out .13s both;pointer-events:none}
 .qz-veil.qz-out>.modal{animation:qz-card-out .13s both}
 .qz-screen-in{animation:qz-fade-in .16s both}
@@ -58,7 +72,7 @@
 /* ---------- question card ---------- */
 .qz-head{display:flex;align-items:center;gap:10px;min-height:28px;padding-bottom:12px;border-bottom:2px dashed var(--paper-line)}
 .qz-header{flex:1;min-width:0;font-size:clamp(1.05rem,4.4vw,1.35rem);display:flex;flex-wrap:wrap;align-items:baseline;gap:3px 10px}
-.qz-header small{font-family:var(--font-type);font-size:.72rem;font-weight:400;letter-spacing:.12em;text-transform:uppercase;color:var(--paper-mute);line-height:1.2}
+.qz-header small{font-family:var(--font-type);font-size:.75rem;font-weight:400;letter-spacing:.12em;text-transform:uppercase;color:var(--paper-mute);line-height:1.2}
 .qz-ctx-boss .qz-header,.qz-ctx-revive .qz-header{color:var(--bad-ink)}
 .qz-pips{flex:none;display:flex;align-items:center;gap:6px}
 .qz-pips i{width:14px;height:14px;border-radius:50%;border:2px solid var(--bad-ink)}
@@ -89,7 +103,7 @@
 .qz-choice-text{min-width:0;overflow-wrap:anywhere}
 /* number chip = a little typewriter key */
 .qz-key,.bz-num{flex:none;display:grid;place-items:center;width:1.9em;height:1.9em;border-radius:8px;background:var(--paper-2);border:1.5px solid var(--paper-line);
-  box-shadow:0 2px 0 var(--paper-edge);font-family:var(--font-type);font-size:.86em;line-height:1;padding-top:.16em;color:var(--paper-ink)}
+  box-shadow:0 2px 0 var(--paper-edge);font-family:var(--font-type);font-size:max(.86em,12px);line-height:1;padding-top:.16em;color:var(--paper-ink)}
 .qz-key.ic{padding-top:0;box-shadow:none}
 .qz-key.ic.img{background:none;border-color:transparent}
 .is-right>.qz-key.ic:not(.img){background:var(--good-ink);border-color:var(--good-ink);color:var(--paper-hi)}
@@ -123,17 +137,17 @@
 
 .qz-answer{display:flex;align-items:center;gap:10px;background:var(--good-soft);border:2px solid var(--good-ink);border-radius:12px;padding:9px 12px;color:var(--good-ink)}
 .qz-answer-text{display:flex;flex-direction:column;gap:1px;min-width:0}
-.qz-answer .eyebrow{color:var(--good-ink);font-size:.7rem}
+.qz-answer .eyebrow{color:var(--good-ink);font-size:.75rem}
 .qz-answer b{font-size:1.1rem;line-height:1.25;color:var(--paper-ink);overflow-wrap:anywhere}
 /* the explanation: the note he should actually read */
 .qz-note{background:var(--paper-hi);border:1.5px solid var(--paper-line);border-left:6px solid var(--kc,var(--brass));border-radius:10px;padding:11px 14px 12px;display:flex;flex-direction:column;gap:7px}
-.qz-note-head{display:flex;align-items:center;gap:6px;font-family:var(--font-type);font-size:.74rem;letter-spacing:.14em;text-transform:uppercase;color:var(--paper-mute);line-height:1}
+.qz-note-head{display:flex;align-items:center;gap:6px;font-family:var(--font-type);font-size:.75rem;letter-spacing:.14em;text-transform:uppercase;color:var(--paper-mute);line-height:1}
 .qz-note-head>span:last-child{margin-left:2px;padding-top:.2em}
 .qz-explain{margin:0;font-size:1.04rem;line-height:1.5;font-weight:700;text-wrap:pretty}
 .qz-continue{width:100%}
 
 /* ---------- quick review: stop control, progress strip, end card, review sheet ---------- */
-.qz-stop{position:relative;flex:none;font-family:var(--font-type);font-size:.74rem;letter-spacing:.14em;text-transform:uppercase;line-height:1;color:var(--paper-ink);
+.qz-stop{position:relative;flex:none;font-family:var(--font-type);font-size:.75rem;letter-spacing:.14em;text-transform:uppercase;line-height:1;color:var(--paper-ink);
   background:var(--paper-hi);border:1.5px solid var(--paper-line);border-radius:999px;padding:.72em .95em .52em;cursor:pointer;box-shadow:0 2px 0 var(--paper-edge);transition:transform .08s,border-color .12s}
 .qz-stop::after{content:"";position:absolute;inset:-9px -6px}
 .qz-stop:hover{border-color:var(--bad-ink);color:var(--bad-ink)}
@@ -154,8 +168,7 @@
 .dr-ready .bar{height:10px}
 .dr-ready .bar>i{background:var(--good-ink);transition:width .7s var(--qz-ease)}
 .dr-fix{gap:12px}
-.dr-actions{align-self:stretch;flex-wrap:nowrap}
-.dr-end .dr-actions .btn{flex:1;width:auto;min-width:0;font-size:1.12rem;padding:.8em .6em}
+.dr-end .dr-actions .btn{font-size:1.12rem;padding:.8em .6em}
 .rv-list{align-self:stretch;display:flex;flex-direction:column;text-align:left}
 .rv-item{display:flex;flex-direction:column;gap:9px;border-top:2px dashed var(--paper-line);padding:14px 0}
 .rv-item:first-child{border-top:0;padding-top:0}
@@ -167,7 +180,6 @@
 .rv-why p{margin:0;font-size:.98rem;line-height:1.45;font-weight:700;min-width:0}
 .rv-why .qz-ico,.rv-why .qz-medal{margin-top:.05em}
 .rv-sheet .qz-head{padding-bottom:12px}
-.rv-sheet>.btn{width:100%}
 
 /* ---------- bonus rounds ---------- */
 .bz-head{display:flex;flex-direction:column;gap:5px}
@@ -210,7 +222,7 @@
 .bz .bz-opt.opt-no{background:var(--side-neutral);border-color:var(--paper-mute);color:var(--ink)}
 .bz .bz-opt.opt-l{background:var(--ink-3);border-color:var(--ink);color:var(--fg)}
 .bz .bz-opt.opt-s{background:var(--c-s);border-color:var(--brass-line);color:var(--paper-ink)}
-.bz .bz-opt[class*="side-"] .qz-key,.bz .bz-opt[class*="opt-"] .qz-key{background:rgba(255,248,227,.2);border-color:currentColor;box-shadow:none;color:inherit}
+.bz .bz-opt[class*="side-"] .qz-key,.bz .bz-opt[class*="opt-"] .qz-key{background:transparent;border-color:currentColor;box-shadow:none;color:inherit}
 .bz .bz-opt.is-right{background:var(--good-soft);border-color:var(--good-ink);color:var(--paper-ink);opacity:1;filter:none;box-shadow:0 4px 0 var(--good-ink)}
 .bz .bz-opt.is-wrong{background:var(--bad-soft);border-color:var(--bad-ink);color:var(--paper-ink);opacity:1;filter:none;box-shadow:0 4px 0 var(--bad-ink)}
 /* clue chips: the cause medal is pinned to the corner of the right chip once he has answered */
@@ -254,11 +266,10 @@
 .bz-score{font-size:3.4rem;animation:qz-rise .2s var(--qz-ease) .08s backwards}
 .bz-fixbox{align-self:stretch;text-align:left;background:var(--paper-hi);border:1.5px solid var(--paper-line);border-radius:12px;padding:11px 13px;display:flex;flex-direction:column;gap:8px}
 .bz-fixes{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:7px;font-size:.99rem;line-height:1.35}
-.bz-fixes li{display:flex;gap:8px;align-items:flex-start;color:var(--good-ink)}
-.bz-fixes li>span:last-child{color:var(--paper-ink);min-width:0}
-.bz-fixes .qz-ico{margin-top:.14em}
+.bz-fixes li{display:flex;gap:9px;align-items:flex-start;color:var(--paper-ink)}
+.bz-fixes li::before{content:"";flex:none;width:7px;height:7px;border-radius:50%;background:var(--paper-mute);margin-top:.48em}
+.bz-fixes li>span{min-width:0}
 .bz-result .bz-note{font-family:var(--font-type);font-size:.95rem;line-height:1.5;color:var(--paper-ink);background:var(--paper-shade);border-radius:10px;padding:9px 12px;align-self:stretch}
-.bz-result .btn{width:100%}
 .qz-confetti{position:absolute;inset:0;overflow:hidden;pointer-events:none;border-radius:inherit;z-index:3}
 .qz-confetti i{position:absolute;top:-12px;width:8px;height:12px;border-radius:2px;opacity:0;animation:qz-confetti .9s cubic-bezier(.2,.6,.4,1) both}
 @keyframes qz-confetti{0%{transform:translate(0,0) rotate(0);opacity:1}80%{opacity:1}100%{transform:translate(var(--x),260px) rotate(var(--r));opacity:0}}
@@ -267,8 +278,8 @@
 .pt .wrap{max-width:720px}
 .pt-top{display:flex;align-items:center;gap:12px}
 .pt-eyebrow{display:inline-flex;align-items:center;gap:6px}
-.pt-count{font-size:1.4rem;margin-top:2px}
-.pt-quit{flex:none;min-height:44px}
+.pt-count{font-size:clamp(1.1rem,5.3vw,1.4rem);margin-top:2px;white-space:nowrap}
+.btn.pt-quit{flex:none;min-height:44px;width:104px;padding-inline:.4em;white-space:nowrap}
 .pt-bar{height:10px;background:var(--ink-3)}
 .pt-slot{display:flex;flex-direction:column}
 .pt-card{position:relative;border-radius:16px;padding:22px 20px 20px;display:flex;flex-direction:column;gap:14px;box-shadow:var(--shadow)}
@@ -280,14 +291,14 @@
 .pt-input{flex:1;min-width:0;width:100%;min-height:52px;font:800 1.1rem var(--font-body);padding:.6em .8em;border:2px solid var(--paper-line);border-radius:12px;
   background:var(--paper-hi);color:var(--paper-ink);box-shadow:inset 0 3px 0 var(--paper-shade);user-select:text;-webkit-user-select:text}
 .pt-input:focus{outline:3px solid var(--brass);outline-offset:1px;border-color:var(--brass-line)}
-.pt-input::placeholder{color:var(--paper-mute);opacity:.7;font-weight:600}
+.pt-input::placeholder{color:var(--paper-mute);opacity:1;font-weight:600}
 .pt-hint{font-size:.88rem}
 .pt-scoreline{display:flex;align-items:center;gap:18px}
 .pt-grade{flex:none;width:112px;height:112px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;padding:0;font-size:1rem;transform:rotate(-8deg);
   animation-name:pt-thump}
-.pt-grade small{font-size:.74rem;letter-spacing:.18em;line-height:1;margin-top:8px}
+.pt-grade small{font-size:.75rem;letter-spacing:.18em;line-height:1;margin-top:8px}
 .pt-grade b{font-family:var(--font-display);font-weight:400;font-size:3.5rem;line-height:.95;letter-spacing:0}
-.pt-grade.long b{font-size:1.25rem;line-height:1.05;max-width:4.2em;text-align:center}
+.pt-grade.long b{font-size:1.25rem;line-height:1.05;max-width:3.4em;text-align:center;white-space:normal}
 @keyframes pt-thump{0%{transform:scale(2.2) rotate(-22deg);opacity:0}60%{transform:scale(.93) rotate(-8deg);opacity:1}100%{transform:scale(1) rotate(-8deg);opacity:1}}
 .pt-scorebox{display:flex;flex-direction:column;gap:2px;min-width:0}
 .pt-score{font-size:clamp(2.4rem,11vw,3.4rem)}
@@ -306,7 +317,7 @@
 .pt-miss-you,.pt-miss-right{display:flex;align-items:flex-start;gap:9px;line-height:1.35}
 .pt-miss-you .qz-ico,.pt-miss-right .qz-ico{margin-top:.2em}
 .pt-miss-you>div,.pt-miss-right>div{display:flex;flex-direction:column;gap:1px;min-width:0}
-.pt-miss-you .eyebrow,.pt-miss-right .eyebrow{font-size:.68rem}
+.pt-miss-you .eyebrow,.pt-miss-right .eyebrow{font-size:.75rem}
 .pt-miss-you{color:var(--bad-ink)}
 .pt-miss-you .eyebrow{color:var(--bad-ink)}
 .pt-miss-right{color:var(--good-ink)}
@@ -321,7 +332,7 @@
 .cx.wrap{margin-block:0;gap:14px;max-width:880px}
 .cx-top{position:sticky;top:0;z-index:2;display:flex;flex-wrap:wrap;align-items:center;gap:10px 12px;background:var(--ink);padding-block:14px 10px;border-bottom:1px solid var(--line)}
 .cx-nav{flex:1 0 100%;display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
-.cx-jump{display:flex;align-items:center;justify-content:center;gap:6px;min-height:40px;padding:4px 6px;border-radius:10px;border:1.5px solid var(--line);background:var(--ink-2);color:var(--fg);
+.cx-jump{display:flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:4px 6px;border-radius:10px;border:1.5px solid var(--line);background:var(--ink-2);color:var(--fg);
   font:800 .82rem/1.1 var(--font-body);cursor:pointer;min-width:0;transition:background .12s,border-color .12s,transform .08s}
 .cx-jump b{font-weight:400;font-size:1rem;color:var(--brass)}
 .cx-jump span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -345,7 +356,7 @@
 .cx-term{min-width:0;background:var(--paper-hi);border:1.5px solid var(--paper-line);border-top:7px solid var(--kc,var(--paper-line));border-radius:12px;padding:12px 14px 14px;display:flex;flex-direction:column;gap:8px;line-height:1.45}
 .cx-term-head{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
 .cx-term-head h3{margin:0;font-family:var(--font-display);font-weight:400;font-size:1.3rem;line-height:1.1}
-.cx-term-head .stamp{font-size:.66rem;margin-left:auto}
+.cx-term-head .stamp{font-size:.75rem;margin-left:auto;color:var(--bad-ink);border-color:var(--bad-ink)}
 .cx-more{font-size:.97rem}
 .cx-term .eyebrow{margin-right:.3em}
 .cx-sub{margin:8px 0 0;font-size:1.1rem;font-weight:900;display:flex;flex-wrap:wrap;align-items:center;gap:8px;line-height:1.25}
@@ -353,7 +364,7 @@
 .cx-side{background:var(--paper-hi);border:2px solid var(--paper-line);border-top-width:7px;border-radius:12px;padding:10px 10px 12px;min-width:0}
 .cx-side.central{border-color:var(--side-central)} .cx-side.allied{border-color:var(--side-allied)}
 .cx-side h3{margin:0;font-family:var(--font-display);font-weight:400;font-size:clamp(1rem,4.6vw,1.25rem);line-height:1.1}
-.cx-side-sub{font-family:var(--font-type);font-size:.74rem;letter-spacing:.12em;text-transform:uppercase;color:var(--paper-mute);margin:5px 0 6px}
+.cx-side-sub{font-family:var(--font-type);font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;color:var(--paper-mute);margin:5px 0 6px}
 .cx-side ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:5px}
 .cx-side li{line-height:1.3;font-size:.95rem}
 .cx-aside{display:block;font-size:.84rem;color:var(--paper-mute);line-height:1.3;margin:1px 0 0 1.2em}
@@ -372,6 +383,9 @@
 .cx-story{font-family:var(--font-type);line-height:2;font-size:1.02rem;background:var(--paper-hi);border:1.5px solid var(--paper-line);border-radius:10px;padding:10px 14px}
 .cx-story mark{background:var(--brass);color:var(--brass-ink);font-family:var(--font-body);font-weight:900;padding:.08em .35em;border-radius:5px;white-space:nowrap}
 .cx-story .cx-dot{margin-right:.3em}
+.cx-nb{white-space:nowrap}
+.cx-qa dd.cx-cont{padding-left:1.19em}
+.pt-done>.qz-more{display:none}
 .cx-chain,.cx-ls{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
 .cx-chain{gap:0}
 .cx-chain li{position:relative;display:flex;align-items:flex-start;gap:12px;padding-bottom:14px}
@@ -387,7 +401,7 @@
 .cx-bottom{width:100%}
 @media (min-width:720px){.cx-terms{grid-template-columns:1fr 1fr}.cx-qa{grid-template-columns:1fr 1fr}.cx-qa>div:last-child{grid-column:1/-1}}
 @media (max-width:359px){.cx-sides{grid-template-columns:1fr}}
-@media (max-width:430px){.cx-jump{flex-direction:column;gap:1px;font-size:.72rem;min-height:44px}}
+@media (max-width:430px){.cx-jump{flex-direction:column;gap:1px;font-size:.75rem;min-height:44px}}
 @media (max-height:520px){.cx-nav{display:none}}
 
 @media (min-width:560px){
@@ -408,11 +422,20 @@
   .cx-sec{padding:18px 14px}
 }
 @media (max-height:700px){
-  .qz,.bz{gap:11px;padding:18px 16px 16px}
-  .qz-head{padding-bottom:9px}
-  .qz-choice,.bz-opt,.bz-chain-item{min-height:50px;font-size:.98rem;padding:.56em .7em}
-  .bz-card{min-height:88px;padding:12px}
-  .bz-tile{min-height:50px}
+  .qz,.bz{gap:10px;padding:16px 16px 14px}
+  .qz-head{padding-bottom:8px;min-height:24px}
+  .qz-header{font-size:1.05rem;gap:1px 10px}
+  .qz-q{font-size:1.08rem;line-height:1.25}
+  .qz-choices,.bz-opts,.bz-grid,.bz-chain{gap:8px}
+  .qz-choice,.bz-opt,.bz-chain-item{min-height:48px;font-size:.95rem;line-height:1.22;padding:.5em .65em;gap:.6em}
+  .bz-title{font-size:1.35rem}
+  .bz-sub{font-size:.9rem;line-height:1.3}
+  .bz-body{gap:10px}
+  .bz-card{min-height:80px;padding:11px 12px}
+  .bz-card.story{padding:10px 13px;gap:5px}
+  .bz-story{font-size:.94rem;line-height:1.62}
+  .bz-tile{min-height:48px}
+  .qz-feedback{gap:10px;padding-top:11px}
 }
 /* landscape phones: use the width, scroll inside the veil if it is still too tall */
 @media (max-height:520px) and (min-width:600px){
@@ -429,3 +452,22 @@
   .bz-tile{min-height:46px;font-size:.92rem}
   .bz-story{line-height:1.7}
 }
+/* still taller than the screen: fit() in quiz.js adds these one notch at a time (after the media blocks on purpose) */
+.qz-tight{gap:9px;padding:14px 14px 12px}
+.qz-tight .qz-head{padding-bottom:7px;min-height:22px}
+.qz-tight .qz-header{font-size:1rem}
+.qz-tight .qz-q{font-size:1rem;line-height:1.24}
+.qz-tight .qz-choices,.qz-tight .bz-opts,.qz-tight .bz-grid,.qz-tight .bz-chain{gap:7px}
+.qz-tight .qz-choice,.qz-tight .bz-opt,.qz-tight .bz-chain-item{min-height:44px;font-size:.9rem;line-height:1.2;padding:.42em .6em;gap:.55em;border-radius:11px}
+.qz-tight .bz-title{font-size:1.2rem}
+.qz-tight .bz-sub{font-size:.86rem;line-height:1.25}
+.qz-tight .bz-body{gap:8px}
+.qz-tight .bz-card{min-height:60px;padding:9px 11px}
+.qz-tight .bz-card.big .bz-card-text{font-size:1.5rem}
+.qz-tight .bz-story{font-size:.9rem;line-height:1.5}
+.qz-tight .bz-tile{min-height:44px;font-size:.94rem}
+.qz-tighter .qz-q{font-size:.95rem;line-height:1.22}
+.qz-tighter .qz-choice,.qz-tighter .bz-opt,.qz-tighter .bz-chain-item{font-size:.84rem;line-height:1.17;padding:.34em .55em}
+.qz-tighter .qz-header small{display:none}
+.qz-tighter .bz-story{font-size:.86rem;line-height:1.42}
+.qz-tighter .bz-card{min-height:48px;padding:7px 10px}

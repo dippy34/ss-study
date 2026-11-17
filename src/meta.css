@@ -3,7 +3,7 @@
    brass PLAY, a paper report card, three tiles. Sub-screens share one sticky header (Back · title · wallet). */
 :root{
   --spark-core:#fff6cf;
-  --mt-glow:rgba(242,187,61,.45); --mt-glow-0:rgba(242,187,61,0);
+  --mt-glow:rgba(242,187,61,.26);
   --mt-brass-deep:#9a6c08;
   --mt-shade:rgba(0,0,0,.34);
   --mt-drop:rgba(3,9,14,.4);
@@ -14,6 +14,7 @@
   --mt-veil-top:rgba(12,25,36,.3); --mt-veil-mid:rgba(12,25,36,.7); --mt-veil-bot:rgba(12,25,36,.93);
   --mt-good-ink:#1b7a4a;
   --mt-paper-deep:#a08854;
+  --mt-stamp-ink:#a3301a;   /* stamp red dark enough for small text on paper (4.8:1) */
   --mt-ease:cubic-bezier(.2,.9,.3,1);
 }
 .mt-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
@@ -62,8 +63,8 @@
   border-bottom-width:4px;border-right-width:4px;border-bottom-right-radius:95% 95%}
 .mt-fuse i{position:absolute;right:-12px;top:-15px;width:22px;height:22px;border-radius:50%;
   background:radial-gradient(circle,var(--spark-core) 0 26%,var(--c-s) 48%,transparent 70%);
-  box-shadow:0 0 18px 5px var(--c-s);animation:mt-flick .42s ease-in-out infinite alternate}
-@keyframes mt-flick{from{transform:scale(.78) rotate(0deg);opacity:.85}to{transform:scale(1.22) rotate(25deg);opacity:1}}
+  box-shadow:0 0 18px 5px var(--c-s);animation:mt-flick 1.8s ease-in-out infinite alternate}
+@keyframes mt-flick{from{transform:scale(.9);opacity:.8}to{transform:scale(1.08);opacity:1}}
 @keyframes mt-word-in{from{transform:rotate(-7deg) scale(1.14);opacity:0}to{transform:rotate(-3deg) scale(1);opacity:1}}
 .mt-title.mt-in .mt-word,.mt-word.mt-land{animation:mt-word-in .34s var(--mt-ease) both}
 .mt-title .mt-word.mt-hold{animation:none;visibility:hidden}
@@ -84,31 +85,27 @@
 .mt-plate .t{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1;line-height:1.15;text-align:left}
 .mt-plate .t b{font-weight:900;font-size:1.05rem}
 .mt-plate .w{display:flex;align-items:center;gap:.35em;font-size:.82rem;font-weight:700;color:var(--fg-mute)}
-.mt-plate .go{display:flex;align-items:center;gap:.4em;font-family:var(--font-type);font-size:.74rem;letter-spacing:.12em;text-transform:uppercase;color:var(--brass);padding-top:.15em}
+.mt-plate .go{display:flex;align-items:center;gap:.4em;font-family:var(--font-type);font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;color:var(--brass);padding-top:.15em}
 
 .btn.mt-play{position:relative;overflow:hidden;align-self:center;width:100%;max-width:400px;font-family:var(--font-display);font-weight:400;
   font-size:clamp(1.7rem,7.5vw,2.1rem);letter-spacing:.1em;padding:.36em 1em .42em;border-radius:18px;border-width:3px;
-  box-shadow:0 6px 0 var(--mt-brass-deep);animation:mt-pulse 3.4s ease-in-out infinite}
-.btn.mt-play::after{content:"";position:absolute;top:0;bottom:0;left:0;width:38%;pointer-events:none;
-  background:linear-gradient(100deg,transparent,var(--mt-shine),transparent);transform:translateX(-140%) skewX(-18deg);animation:mt-sweep 4.4s 1.2s ease-in-out infinite}
-@keyframes mt-sweep{0%,74%{transform:translateX(-140%) skewX(-18deg)}100%{transform:translateX(400%) skewX(-18deg)}}
-.btn.mt-play:active{animation:none;transform:translateY(5px);box-shadow:0 1px 0 var(--mt-brass-deep)}
-@keyframes mt-pulse{0%,100%{box-shadow:0 6px 0 var(--mt-brass-deep),0 0 0 0 var(--mt-glow-0)}
-  50%{box-shadow:0 6px 0 var(--mt-brass-deep),0 0 20px 1px var(--mt-glow)}}
+  box-shadow:0 6px 0 var(--mt-brass-deep),0 0 18px 0 var(--mt-glow)}   /* calm: a steady glow, no idle animation */
+.btn.mt-play:active{transform:translateY(5px);box-shadow:0 1px 0 var(--mt-brass-deep)}
 
 .mt-danger{display:flex;align-items:center;gap:8px;align-self:center;width:100%;max-width:400px;background:var(--ink-2);border:2px solid var(--line);border-radius:14px;padding:5px 6px}
 .mt-danger .btn{min-width:44px;min-height:44px;font-size:1.2rem;padding:.2em .5em}
 .mt-danger .v{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;text-align:center;line-height:1.15}
 .mt-danger .r{display:flex;align-items:center;gap:.35em}
 .mt-danger .v b{color:var(--c-n);font-weight:900}
-.mt-danger .v>span{font-size:.74rem;color:var(--fg-mute)}
+.mt-danger .v>span{font-size:.75rem;color:var(--fg-mute)}
+.mt-danger.is-zero .v b{color:var(--fg)} .mt-danger.is-zero .mt-ico{filter:grayscale(1);opacity:.5}
 
 .mt-ready,.mt-res-ready{border-radius:16px;padding:12px 14px 14px;display:flex;flex-direction:column;gap:9px;box-shadow:0 8px 22px var(--mt-drop)}
 .mt-ready-head{display:flex;align-items:center;gap:12px}
 .mt-ready-title{font-family:var(--font-type);text-transform:uppercase;letter-spacing:.14em;font-size:.95rem;font-weight:700;line-height:1.2}
 .mt-ready-sub{font-size:.82rem;font-weight:700;line-height:1.25;color:var(--paper-mute)}
 .mt-ready-pct{font-size:clamp(2rem,9.5vw,2.7rem);line-height:.95;white-space:nowrap;color:var(--paper-ink)}
-.mt-ready-pct.lv-lo{color:var(--stamp)} .mt-ready-pct.lv-hi,.mt-ready-pct.lv-full{color:var(--mt-good-ink)}
+.mt-ready-pct.lv-lo{color:var(--mt-stamp-ink)} .mt-ready-pct.lv-hi,.mt-ready-pct.lv-full{color:var(--mt-good-ink)}
 .mt-bar-big{height:18px;box-shadow:inset 0 2px 3px var(--mt-shade)}
 /* paper you can press: the report card (tap = Quick Review) and the "missed" row on the results */
 .mt-pbtn{appearance:none;-webkit-appearance:none;font:inherit;text-align:left;width:100%;margin:0;cursor:pointer;-webkit-tap-highlight-color:transparent;
@@ -131,25 +128,70 @@
 .mt-tile3 .ic{display:grid;place-items:center;height:30px}
 .mt-tile3 .lb{line-height:1.1}
 
-/* phones held sideways: wordmark + hero on the left, everything you tap on the right */
-@media (orientation:landscape) and (max-height:540px){
+/* wide but not tall (phones held sideways, small laptop windows): wordmark + hero on the left, everything you tap on the right */
+@media (orientation:landscape) and (max-height:779px){
   .mt-title>.wrap{max-width:820px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.08fr);grid-template-areas:"top top" "stage deck";align-items:center;column-gap:28px;row-gap:6px}
-  .mt-top{grid-area:top} .mt-stage{grid-area:stage} .mt-deck{grid-area:deck;gap:10px}
+  .mt-top{grid-area:top} .mt-stage{grid-area:stage} .mt-deck{grid-area:deck}
   .mt-word .w1{font-size:clamp(1.9rem,12vh,2.8rem)} .mt-word .w2{font-size:clamp(2.9rem,18.5vh,4.3rem)}
-  .btn.mt-tile3{min-height:60px;padding-block:.45em}
-  .mt-title{padding-block:10px}
-  .mt-ready{padding-block:9px 11px;gap:7px}
 }
-/* short phones: keep the whole title on one screen */
-@media (orientation:portrait) and (max-height:660px){
-  .mt-ready{padding-block:9px 11px;gap:7px}
+/* phones held sideways: everything a size smaller so the danger stepper fits too */
+@media (orientation:landscape) and (max-height:540px){
+  .mt-deck{gap:8px}
+  .btn.mt-tile3{min-height:56px;padding-block:.35em;gap:4px}
+  .mt-tile3 .ic{height:24px} .mt-tile3 .ic .mt-ico{width:24px !important;height:24px !important}
+  .mt-title{padding-block:10px}
+  .mt-ready{padding-block:7px 9px;gap:5px}
+  .mt-ready-pct{font-size:2rem}
+  .btn.mt-play{font-size:1.6rem;padding-block:.28em .34em}
+  .mt-danger{padding:3px 5px}
+}
+/* shorter phones (a browser with its bars showing): tighten in steps so the whole title, danger stepper included, stays on one screen */
+@media (orientation:portrait) and (max-height:780px){
+  .mt-title{padding-block:14px}
+  .mt-title>.wrap{gap:12px}
+  .mt-deck{gap:10px}
+  .mt-word .w1{font-size:clamp(2.1rem,11vw,3.3rem)} .mt-word .w2{font-size:clamp(3.2rem,17vw,5rem)}
+  .btn.mt-tile3{min-height:72px}
+}
+@media (orientation:portrait) and (max-height:700px){
+  .mt-title{padding-block:10px}
+  .mt-title>.wrap{gap:8px}
+  .mt-stage{gap:4px}
+  .mt-word .w1{font-size:clamp(1.8rem,9.4vw,2.3rem)} .mt-word .w2{font-size:clamp(2.8rem,14.6vw,3.5rem)}
+  .mt-plate-bar{min-height:48px;padding-block:5px}
+  .btn.mt-play{font-size:1.6rem;padding-block:.28em .34em}
+  .mt-danger{padding:3px 5px}
+  .mt-ready{padding-block:8px 10px;gap:6px}
+  .mt-ready-pct{font-size:2rem}
+  .btn.mt-tile3{min-height:60px;padding-block:.4em;gap:4px}
+  .mt-tile3 .ic{height:26px} .mt-tile3 .ic .mt-ico{width:26px !important;height:26px !important}
+}
+@media (orientation:portrait) and (max-height:600px){
+  .mt-title{padding-block:8px}
+  .mt-title>.wrap{gap:6px}
+  .mt-stage{gap:2px}
+  .mt-deck{gap:8px}
+  .mt-word .w1{font-size:clamp(1.6rem,8.2vw,2rem)} .mt-word .w2{font-size:clamp(2.4rem,12.6vw,3.1rem)}
+  .mt-plate-bar{min-height:46px}
+  .btn.mt-play{font-size:1.45rem}
+  .mt-ready-title{font-size:.85rem}
+  .btn.mt-tile3{min-height:54px;padding-block:.3em;gap:3px}
+  .mt-tile3 .ic{height:24px} .mt-tile3 .ic .mt-ico{width:24px !important;height:24px !important}
 }
 /* big screens: let the poster breathe */
-@media (min-width:900px) and (min-height:720px){
+@media (min-width:900px) and (min-height:780px){
   .mt-title>.wrap{max-width:500px;gap:16px}
   .mt-deck{gap:14px}
   .mt-plate,.btn.mt-play,.mt-danger{max-width:none}
 }
+@media (min-width:900px) and (min-height:780px) and (max-height:880px){
+  .mt-title{padding-block:12px}
+  .mt-title>.wrap{gap:12px}
+  .mt-deck{gap:10px}
+}
+/* the title holds still while something covers it (help, a question card, Study Notes, the Practice Test) */
+.mt-paused .mt-fuse i{animation-play-state:paused}
+.mt-title:focus,.mt-sub:focus{outline:none}
 
 /* ---- sub-screens ---- */
 .mt-sub{padding-top:0}
@@ -197,19 +239,26 @@
 .mt-cd.mt-swap{animation:mt-swap .16s ease-out both}
 .mt-roster{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
 .mt-rb{--kc:var(--line);position:relative;appearance:none;-webkit-appearance:none;margin:0;padding:6px 0 2px;min-height:68px;border-radius:16px;border:2px solid var(--line);
-  background:var(--ink-2);color:inherit;cursor:pointer;display:grid;place-items:center;overflow:hidden;-webkit-tap-highlight-color:transparent;
+  background:var(--ink-2);color:inherit;cursor:pointer;display:grid;grid-template-columns:minmax(0,1fr);place-items:center;overflow:hidden;-webkit-tap-highlight-color:transparent;
   box-shadow:0 4px 0 var(--mt-shade),inset 0 1px 0 var(--mt-hi);transition:transform .08s,box-shadow .08s,border-color .15s,background .15s}
 .mt-rb:active{transform:translateY(3px);box-shadow:0 1px 0 var(--mt-shade)}
 .mt-rb[aria-pressed="true"]{border-color:var(--kc);background:var(--ink-3)}
 .mt-rb:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
 .mt-rb.is-locked .mt-port{filter:brightness(.3) saturate(.2)}
-.mt-rb-badge{position:absolute;right:5px;top:5px;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:var(--ink);border:1px solid var(--line)}
+.mt-rb canvas.mt-port{width:100% !important;height:auto !important;max-width:88px;aspect-ratio:88/60}   /* drawn 88x60, shown as wide as the tile allows */
+.mt-rb-badge{position:absolute;left:4px;bottom:4px;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;background:var(--ink);border:1px solid var(--line)}
 .mt-rb-badge.sel{background:var(--good);border-color:var(--good)}
 
 /* sideways phones and big screens: preview on the left, roster on the right */
 @media (orientation:landscape) and (max-height:540px), (min-width:900px){
   .mt-chars>.wrap{max-width:880px}
   .mt-chars-body{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);align-items:start;gap:16px}
+}
+/* sideways phones: the preview is taller than the screen, so the roster and the Select / Unlock button both stay in view */
+@media (orientation:landscape) and (max-height:540px){
+  .mt-roster{position:sticky;top:70px}
+  .mt-cd .mt-card-foot{position:sticky;bottom:8px;z-index:1}
+  .mt-cd .mt-card-foot::before{content:"";position:absolute;inset:-14px -6px -8px;z-index:-1;background:linear-gradient(180deg,transparent,var(--ink-2) 45%)}
 }
 
 /* shop: one compact row per upgrade */
@@ -227,7 +276,7 @@
 .mt-effect b{color:var(--good);font-weight:900}
 .mt-up .mt-card-desc{font-size:.8rem}
 .btn.mt-buy{flex-direction:column;gap:4px;min-width:80px;min-height:58px;padding:.45em .6em;border-radius:14px;font-size:.8rem}
-.mt-buy .bl{font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;opacity:.85}
+.mt-buy .bl{font-size:.75rem;letter-spacing:.1em;text-transform:uppercase;opacity:.85}
 .mt-buy .mt-cost{font-size:1rem}
 .mt-up .mt-state{flex:none;min-width:80px;min-height:58px;flex-direction:column;gap:3px;padding:.4em}
 .mt-up.is-max{border-color:var(--brass)}
@@ -289,12 +338,19 @@
 .btn.mt-reset{align-self:flex-start;min-height:44px;color:var(--bad);border-color:var(--bad)}
 
 /* how to play */
-.mt-help .modal{max-width:520px}
-.mt-howto{list-style:none;margin:0 0 18px;padding:0;display:flex;flex-direction:column;gap:12px}
+.mt-help .modal{max-width:520px;max-height:100%;display:flex;flex-direction:column}   /* the list scrolls, Got it stays put */
+.mt-howto{list-style:none;margin:0 0 14px;padding:0;display:flex;flex-direction:column;gap:12px;flex:1 1 auto;min-height:0;overflow-y:auto}
 .mt-howto li{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;align-items:center;font-weight:600;line-height:1.35}
 .mt-how-ic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:var(--paper-2);border:1px solid var(--paper-line)}
 .mt-how-t{display:flex;flex-direction:column;gap:1px}
-.mt-tag{font-family:var(--font-type);text-transform:uppercase;letter-spacing:.1em;font-size:.8rem;font-weight:400;color:var(--stamp)}
+.mt-tag{font-family:var(--font-type);text-transform:uppercase;letter-spacing:.1em;font-size:.8rem;font-weight:400;color:var(--mt-stamp-ink)}
+@media (orientation:landscape) and (max-height:540px){
+  .mt-help .modal{max-width:780px;padding:14px 18px}
+  .mt-help .mt-h2{font-size:1.3rem;margin:0 0 8px}
+  .mt-howto{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 18px;align-content:start;margin-bottom:10px}
+  .mt-howto li{font-size:.9rem;line-height:1.3}
+  .mt-help .btn.big{min-height:46px;padding-block:.45em}
+}
 
 /* ---- RESULTS ---- */
 .mt-results{padding-top:18px;padding-bottom:0}
@@ -330,7 +386,7 @@
 .mt-res-tiles{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
 .mt-res-tiles .mt-tile{padding:9px 4px;align-items:center;text-align:center;gap:3px}
 .mt-res-tiles .mt-tile b{font-size:clamp(.95rem,4.4vw,1.25rem)}
-.mt-res-tiles .mt-tile span{font-size:.7rem}
+.mt-res-tiles .mt-tile span{font-size:.75rem}
 .mt-more summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.4em;min-height:44px;margin-block:-8px -6px;
   font-size:.8rem;font-weight:800;color:var(--fg-mute);border-radius:10px}
 .mt-more summary::-webkit-details-marker{display:none}
@@ -348,7 +404,7 @@
 .mt-res-ready .mt-ready-pct{font-size:clamp(1.6rem,7.5vw,2.3rem)}
 .mt-missed{display:flex;align-items:center;gap:10px;min-height:48px;padding:8px 14px;border-radius:14px;font-size:.92rem;box-shadow:0 3px 0 var(--mt-paper-deep)}
 .mt-missed:active{transform:translateY(2px);box-shadow:0 1px 0 var(--mt-paper-deep)}
-.mt-missed b{color:var(--stamp)}
+.mt-missed b{color:var(--mt-stamp-ink)}
 .mt-news{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;perspective:700px}
 @keyframes mt-flip{from{transform:rotateX(-80deg);opacity:0}to{transform:none;opacity:1}}
 .mt-news li{position:relative;overflow:hidden;display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:14px;background:var(--ink-2);border:1px solid var(--brass);
@@ -375,6 +431,6 @@
   .mt-up.is-max:hover,.mt-ach.is-done:hover{border-color:var(--brass)}
 }
 @media (prefers-reduced-motion:reduce){
-  .btn.mt-play,.btn.mt-play::after,.mt-fuse i,.mt-shine>i::after,.mt-news li,.mt-news li::after,.mt-actm.done,.mt-res-head>.stamp,
+  .mt-fuse i,.mt-shine>i::after,.mt-news li,.mt-news li::after,.mt-actm.done,.mt-res-head>.stamp,
   .screen.mt-in,.screen.mt-in>.wrap,.mt-title.mt-in .mt-word,.mt-word.mt-land,.mt-up.mt-pop,.mt-up.mt-pop .mt-up-ic,.mt-pips i.new,.mt-cd.mt-swap{animation:none}
 }

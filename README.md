@@ -3,8 +3,8 @@
 A survive-the-horde arcade game for studying the **Causes of World War I**. Your weapons fire by themselves; every
 level-up asks one study-guide question. Get it right and you choose your upgrade.
 
-**Play:** open `index.html` in any browser (phone or computer). Nothing to install, no downloads, works offline
-once the fonts have loaded.
+**Play:** open `index.html` in any browser (phone or computer). Nothing to install, no downloads, and it works with
+no internet at all: the art, the music and even the fonts travel inside that one file.
 
 ## How it teaches
 
@@ -33,12 +33,16 @@ Coins buy permanent upgrades and unlock agents, and beating the Spark unlocks ha
 
 ## Project layout
 
-Everything is plain JavaScript and CSS, drawn in code: no images, no audio files, no libraries.
+Everything is plain JavaScript and CSS, drawn in code: no images, no audio files, no libraries. The only binary
+files are the three typefaces in `src/fonts` (Alfa Slab One and Nunito under the SIL Open Font License, Special
+Elite under Apache 2.0; licence texts are next to them), which the build embeds into the page.
 
 ```
 index.html              built single-file game (generated — do not edit)
 build.py                bundles src/ into index.html and dist/artifact.html
 src/base.css            design tokens + shared components
+src/fonts/              the three embedded typefaces and their licences
+src/js/core.js          tiny helpers, toasts, and the rule that keeps keyboard focus inside the open overlay
 src/js/data.js          study-guide facts and the 236-question bank
 src/js/quiz.js          question cards, bonus rounds, quick review, practice test, study notes, mastery tracking
 src/js/game.js          the engine: weapons, monsters, bosses, level-up / chest / revive flows, simulator

@@ -46,11 +46,42 @@
       opts = opts || {};
       const root = document.getElementById('toasts');
       if (!root) return;
-      root.classList.toggle('low', !!(window.Game && Game.isRunning && Game.isRunning()));   /* during a run toasts sit at the bottom, clear of the HUD */
-      const t = U.el('div', { class: 'toast ' + (opts.kind || ''), html });
+      const inRun = !!(window.Game && Game.isRunning && Game.isRunning());
+      root.classList.toggle('low', inRun);   /* during a run toasts sit at the bottom, clear of the HUD */
+      const t = U.el('div', { class: 'toast ' + (opts.kind || ''), html, role: 'status' });
       root.appendChild(t);
-      while (root.children.length > 3) root.removeChild(root.firstChild);
+      while (root.children.length > (inRun ? 1 : 2)) root.removeChild(root.firstChild);   /* calm: never a stack of notices */
       setTimeout(() => { t.style.transition = 'opacity .3s'; t.style.opacity = '0'; setTimeout(() => t.remove(), 320); }, opts.ms || 2200);
     },
   };
+
+  /* Overlays: while anything is open in #modals (a question, a picker, the pause menu, Study Notes, the Practice Test…)
+     the pages and HUD behind it are inert, so Tab / Space / Enter can never press a button the player cannot see, and
+     keyboard focus moves into the overlay. When the last overlay closes, focus returns to where it was. */
+  function guardOverlays() {
+    const modals = document.getElementById('modals'); if (!modals || !window.MutationObserver) return;
+    const behind = ['screens', 'hud'].map((id) => document.getElementById(id)).filter(Boolean);
+    let was = false, back = null;
+    const sync = () => {
+      const open = modals.children.length > 0;
+      if (open && !was) { const a = document.activeElement; back = a && a !== document.body && !modals.contains(a) ? a : null; }
+      behind.forEach((n) => { if (open) { n.inert = true; n.setAttribute('inert', ''); } else { n.inert = false; n.removeAttribute('inert'); } });
+      if (open) {
+        /* give the overlay's own focus() a frame to run first; only step in when focus is still outside it */
+        requestAnimationFrame(() => {
+          const top = modals.lastElementChild, a = document.activeElement;
+          if (!top || (a && top.contains(a))) return;
+          if (!top.hasAttribute('tabindex')) top.setAttribute('tabindex', '-1');
+          try { top.focus({ preventScroll: true }); } catch (e) {}
+        });
+      } else if (was) {
+        const b = back; back = null;
+        if (b && b.isConnected && b.offsetParent !== null) { try { b.focus({ preventScroll: true }); } catch (e) {} }
+      }
+      was = open;
+    };
+    new MutationObserver(sync).observe(modals, { childList: true });
+    sync();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', guardOverlays); else guardOverlays();
 })();

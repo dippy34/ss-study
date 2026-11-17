@@ -759,15 +759,17 @@
     if (p.schedule) p.schedule(now + LOOKAHEAD);
     return p;
   }
+  /* muted, or music turned all the way down: play (and schedule) nothing at all rather than a silent band */
+  function musicOff() { const s = S(); return !!s.muted || !(num(s.music, 0.55) > 0); }
   function applyTrack() {
     const E = eng; if (!E || E.ctx.state !== 'running') return;
-    const key = srcKey(wantTrack);
-    if (wantTrack === curTrack && key === curKey) return;
-    if (key && key === curKey && players.some((p) => !p.fading)) { curTrack = wantTrack; return; }   // that source is already playing (external loop / loop after a stinger)
+    const want = musicOff() ? null : wantTrack, key = srcKey(want);
+    if (want === curTrack && key === curKey) return;
+    if (key && key === curKey && players.some((p) => !p.fading)) { curTrack = want; return; }   // that source is already playing (external loop / loop after a stinger)
     const now = E.ctx.currentTime;
-    fadeOutAll(E, STINGERS[wantTrack] ? 0.3 : 0.6);
-    curTrack = wantTrack; curKey = key;
-    if (wantTrack) spawn(E, wantTrack, now + 0.08);
+    fadeOutAll(E, STINGERS[want] ? 0.3 : 0.6);
+    curTrack = want; curKey = key;
+    if (want) spawn(E, want, now + 0.08);
   }
   function tick() {
     const E = eng; if (!E || E.ctx.state !== 'running') return;
@@ -891,9 +893,9 @@
       if (eng && !dead) applyTrack();                                      // otherwise it starts on unlock
     },
     duck(on) { ducked = !!on; if (eng) applyLevels(eng); },
-    setMusicVolume(v) { S().music = clamp(num(+v, 0), 0, 1); persist(); if (eng) applyLevels(eng); },
+    setMusicVolume(v) { S().music = clamp(num(+v, 0), 0, 1); persist(); if (eng) { applyLevels(eng); applyTrack(); } },
     setSfxVolume(v) { S().sfx = clamp(num(+v, 0), 0, 1); persist(); if (eng) applyLevels(eng); },
-    setMuted(b) { S().muted = !!b; persist(); if (eng) applyLevels(eng); },
+    setMuted(b) { S().muted = !!b; persist(); if (eng) { applyLevels(eng); applyTrack(); } },
     /* optional real recordings: {menu:url, game:url, boss:url}. Any failure silently keeps the procedural track. */
     useExternal(map) {
       ensureInit(); if (dead || !map || typeof fetch !== 'function') return;

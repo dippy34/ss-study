@@ -96,4 +96,6 @@ kbd,.kbd{font-family:var(--font-type);font-size:.8em;background:rgba(0,0,0,.25);
   box-shadow:var(--shadow);animation:toast-in .25s both;max-width:min(520px,100%);text-align:center}
 .toast.good{border-color:var(--good)} .toast.bad{border-color:var(--bad)}
 #toasts.low{justify-content:flex-end;padding:0 16px 104px}
+/* the overlay that takes keyboard focus for its buttons shows no ring of its own */
+#modals>[tabindex="-1"]:focus,#screens>[tabindex="-1"]:focus{outline:none}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}

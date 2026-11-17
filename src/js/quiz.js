@@ -17,6 +17,9 @@
   let openCount = 0;
   let queue = Promise.resolve();
   const serial = (fn) => { const p = queue.then(fn, fn); queue = p.catch(() => {}); return p; };
+  /* sheets opened from a menu: a second call while one is open (or waiting) gets the same promise instead of queueing another */
+  const live = {};
+  const once = (key, fn) => live[key] || (live[key] = serial(fn).then((v) => { live[key] = null; return v; }, (e) => { live[key] = null; throw e; }));
   const sfx = (n, o) => { try { if (window.AudioSys && AudioSys.sfx) AudioSys.sfx(n, o); } catch (e) { /* audio is optional */ } };
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const root = () => document.getElementById('modals') || document.body;
@@ -139,7 +142,7 @@
     const k = KEYS[key] || KEYS.S;
     if (realIcons()) { try { const c = PK.icon(key, px); if (c) { c.classList.add('qz-ico'); return c; } } catch (e) { /* fall through */ } }
     const glyph = key === 'S' ? SVGS.spark : key === 'X' ? SVGS.cross : null;
-    return el('span', { class: 'qz-medal key-' + k.cls, 'aria-hidden': 'true', style: { width: px + 'px', height: px + 'px', fontSize: Math.round(px * 0.52) + 'px' }, html: glyph || undefined, text: glyph ? undefined : key });
+    return el('span', { class: 'qz-medal key-' + k.cls, 'aria-hidden': 'true', style: { width: px + 'px', height: px + 'px', fontSize: Math.max(12, Math.round(px * 0.52)) + 'px' }, html: glyph || undefined, text: glyph ? undefined : key });
   }
   /* swap an option's number chip for a tick / cross once it has been judged */
   function chipMark(btn, ok) {
@@ -150,6 +153,41 @@
   }
   /* quick fade-out, then run cb (which removes the node) */
   function leave(node, cb) { if (reduced()) { cb(); return; } node.classList.add('qz-out'); setTimeout(cb, 130); }
+  /* short screens: tighten the type one notch at a time until the whole card is on screen (.qz-tight / .qz-tighter in quiz.css) */
+  function fit(box, card, keep) {
+    if (!keep) card.classList.remove('qz-tight', 'qz-tighter');
+    const over = () => box.scrollHeight > box.clientHeight + 1;
+    if (over()) card.classList.add('qz-tight');
+    if (over()) card.classList.add('qz-tighter');
+  }
+  /* a card taller than the screen: a fade and a "More below" tag stay pinned to the bottom edge until he reaches the end.
+     Not shown while the card has its own pinned footer button. Returns a function that re-checks. */
+  function scrollCue(box) {
+    const more = el('div', { class: 'qz-more', hidden: true, 'aria-hidden': 'true' }, el('span', { text: 'More below' }));
+    box.appendChild(more);
+    const sync = () => { more.hidden = !!box.querySelector('.qz-foot') || box.scrollHeight - box.clientHeight - box.scrollTop < 40; };
+    box.addEventListener('scroll', sync, { passive: true });
+    try { if (window.ResizeObserver) { const ro = new ResizeObserver(sync); ro.observe(box); if (box.firstElementChild) ro.observe(box.firstElementChild); } } catch (e) { /* older browsers */ }
+    sync();
+    return sync;
+  }
+  /* growing a centred card (feedback, a "Got it" button) must not make it jump up: pin its top where it is */
+  function holdTop(box, card) { try { card.style.marginTop = Math.max(0, card.offsetTop - (parseFloat(getComputedStyle(box).paddingTop) || 0)) + 'px'; } catch (e) { /* ignore */ } }
+  /* ...and once it has grown: if its foot now hangs off the screen, slide it up just far enough (never past the top) */
+  function settle(box, card) {
+    const mt = parseFloat(card.style.marginTop);
+    if (!(mt > 0)) return;
+    const over = box.scrollHeight - box.clientHeight;
+    if (over > 0) card.style.marginTop = Math.max(0, mt - over) + 'px';
+  }
+  const toFocus = (node) => { try { node.focus({ preventScroll: true }); } catch (e) { /* ignore */ } };
+  /* Space / Enter must not reach whatever is focused behind an open card (it would press the button that opened it again).
+     strict: also when the card itself (not one of its buttons or fields) has the focus */
+  function strayKey(e, node, strict) {
+    if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return false;
+    const a = document.activeElement;
+    return !(a && node.contains(a) && !(strict && a === node));
+  }
   /* a one-second paper-confetti toss inside a card */
   function confetti(host) {
     if (reduced() || !host) return;
@@ -220,6 +258,12 @@
       const t0 = performance.now();
       const unlockAt = t0 + 350;       /* ignore taps that were meant for the game */
       let answered = false, done = false, canGo = false, tick = null, lastTick = 99, result = null;
+      /* short screen: shrink the type until all the choices show; if they still cannot, say that there is more below */
+      const cue = scrollCue(veil);
+      const refit = () => { if (done) return; if (!answered) fit(veil, modal); cue(); };
+      refit(); veil.scrollTop = 0; toFocus(modal);
+      window.addEventListener('resize', refit);
+      try { if (document.fonts && document.fonts.ready) document.fonts.ready.then(refit); } catch (e) { /* older browsers */ }
 
       function choose(i) {
         if (answered) return;
@@ -249,27 +293,33 @@
         const medals = q.fact === 'cause:main' ? ['M', 'A', 'I', 'N'].map((k) => medal(k, 22)) : medal(q.key, 22);
         const cont = el('button', { class: 'btn primary big qz-continue', type: 'button', text: 'Continue' });
         const note = el('div', { class: 'qz-note key-' + pill.cls }, el('div', { class: 'qz-note-head' }, medals, el('span', { text: pill.label })), el('p', { class: 'qz-explain', text: q.explain || '' }));
+        holdTop(veil, modal);
         fb.append(
           el('div', { class: 'qz-verdict' },
             el('span', { class: 'stamp qz-stamp ' + (ok ? 'good' : 'bad'), text: ok ? U.pick(YES) : (i < 0 ? 'TIME UP' : 'NOT QUITE') }), streakEl),
           note, cont);
         fb.hidden = false;
+        settle(veil, modal);
         result = { correct: ok, questionId: q.id, factId: q.fact, timeMs: Math.round(performance.now() - t0), streak: S.streak };
         if (opts.stop && missed) result.miss = missed;
         setTimeout(() => { canGo = true; }, ok ? 220 : 450);
         cont.addEventListener('click', () => { if (canGo) finish(); });
         try {
-          cont.focus({ preventScroll: true }); cont.scrollIntoView({ block: 'nearest' });
+          /* a card that outgrew the screen goes to its very end, so Continue and the note sit above the bottom edge */
+          const toEnd = () => { if (cont.getBoundingClientRect().bottom > veil.getBoundingClientRect().bottom - 10) veil.scrollTop = veil.scrollHeight; };
+          cont.focus({ preventScroll: true }); toEnd();
           /* after a miss the right choice is lit green in the list; if the card is so tall that it scrolled out of view, repeat it next to the note */
           if (!ok && btns[P.answer].getBoundingClientRect().top < veil.getBoundingClientRect().top + 4) {
             fb.insertBefore(el('div', { class: 'qz-answer' }, ico('check', 20), el('div', { class: 'qz-answer-text' }, el('span', { class: 'eyebrow', text: 'Answer' }), el('b', { text: P.choices[P.answer] }))), note);
-            cont.scrollIntoView({ block: 'nearest' });
+            toEnd();
           }
         } catch (e) { /* older browsers */ }
+        cue();
       }
       function finish() {
         if (done) return; done = true;
         window.removeEventListener('keydown', onKey, true);
+        window.removeEventListener('resize', refit);
         if (tick) clearInterval(tick);
         sfx('click');
         leave(veil, () => { veil.remove(); openCount--; resolve(result); });
@@ -290,6 +340,7 @@
           else if (P.choices[0] === 'True' && (k === 't' || k === 'T')) i = 0;
           else if (P.choices[0] === 'True' && (k === 'f' || k === 'F')) i = 1;
           if (i >= 0 && i < btns.length) { e.preventDefault(); e.stopPropagation(); if (!e.repeat) choose(i); }
+          else if (strayKey(e, modal, true)) { e.preventDefault(); e.stopPropagation(); }
         } else if (k === 'Enter' || k === ' ' || k === 'Spacebar') {
           e.preventDefault(); e.stopPropagation();
           if (canGo && !e.repeat) finish();
@@ -302,11 +353,18 @@
         const total = opts.timeLimit * 1000;
         timerFill.style.width = '100%';
         /* count only time the page is actually visible: locking the phone must not time the question out */
-        let used = 0, prev = performance.now();
+        let used = 0, prev = performance.now(), seen = false, waited = 0;
         tick = setInterval(() => {
-          const now = performance.now();
-          if (!document.hidden) used += Math.min(now - prev, 250);
+          const now = performance.now(), dt = document.hidden ? 0 : Math.min(now - prev, 250);
           prev = now;
+          /* the clock starts once the last choice is on screen (or after six seconds, so it cannot be stalled) */
+          if (!seen) {
+            let low = 0, edge = 0;
+            try { low = btns[btns.length - 1].getBoundingClientRect().bottom; edge = veil.getBoundingClientRect().bottom; } catch (e) { /* ignore */ }
+            seen = waited >= 6000 || low <= edge + 2;
+            if (!seen) { waited += dt; return; }
+          }
+          used += dt;
           const left = total - used;
           timerFill.style.width = Math.max(0, (left / total) * 100) + '%';
           const sec = Math.ceil(left / 1000);
@@ -378,7 +436,7 @@
         m && m.explain ? el('div', { class: 'rv-why' + (k ? ' key-' + KEYS[k].cls : '') }, k ? medal(k, 22) : null, el('p', { text: m.explain })) : null);
     }));
   }
-  function drill(opts) { opts = opts || {}; return serial(() => runDrill(opts)); }
+  function drill(opts) { opts = opts || {}; return once('drill', () => runDrill(opts)); }
   async function runDrill(opts) {
     st();
     const count = Math.max(1, Math.min(30, (opts.count | 0) || 10));
@@ -417,8 +475,8 @@
             el('div', { class: 'dr-ready-top' }, el('span', { class: 'eyebrow', text: 'Quiz Readiness' }),
               el('span', { class: 'dr-ready-n num' }, after === before ? el('b', { class: 'now', text: after + '%' }) : [el('span', { class: 'was', text: before + '%' }), el('span', { class: 'to', text: ' → ' }), el('b', { class: 'now', text: after + '%' })])),
             el('div', { class: 'bar' }, fill)),
-          misses.length ? el('div', { class: 'bz-fixbox dr-fix' }, el('div', { class: 'eyebrow', text: misses.length === 1 ? 'Fix this one' : 'Fix these ' + misses.length }), reviewList(misses)) : null,
-          el('div', { class: 'row dr-actions' }, again, doneBtn)));
+          misses.length ? el('div', { class: 'bz-fixbox dr-fix' }, el('div', { class: 'eyebrow', text: misses.length === 1 ? 'Fix this one' : 'Fix these ' + misses.length }), reviewList(misses)) : null),
+        el('div', { class: 'qz-foot dr-actions' }, again, doneBtn));
       const veil = el('div', { class: 'veil qz-veil' }, modal);
       const t0 = performance.now(); let done = false;
       const fin = (v) => { if (done || performance.now() - t0 < 400) return; done = true; window.removeEventListener('keydown', onKey, true); sfx('click'); leave(veil, () => { veil.remove(); openCount--; resolve(v); }); };
@@ -431,27 +489,31 @@
       sfx(perfect ? 'streak' : 'card');
       setTimeout(() => { fill.style.width = after + '%'; }, reduced() ? 0 : 250);
       if (perfect) confetti(modal);
-      try { doneBtn.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
+      toFocus(doneBtn);
     });
   }
   /* a closable paper sheet listing [{q, answer, explain, key}] — e.g. Quiz.runMisses() on the results screen */
-  function reviewSheet(list, title) { return serial(() => runSheet(Array.isArray(list) ? list.filter(Boolean) : [], title)); }
+  function reviewSheet(list, title) { return once('sheet', () => runSheet(Array.isArray(list) ? list.filter(Boolean) : [], title)); }
   function runSheet(list, title) {
     st();
     return new Promise((resolve) => {
       const closeBtn = el('button', { class: 'qz-stop', type: 'button', text: 'Close' });
       const doneBtn = el('button', { class: 'btn primary big', type: 'button', text: 'Done' });
-      const modal = el('div', { class: 'modal paper bz rv-sheet qz-card-in', role: 'dialog', 'aria-modal': 'true', 'aria-label': title || 'Review' },
+      const modal = el('div', { class: 'modal paper bz rv-sheet qz-card-in', role: 'dialog', 'aria-modal': 'true', 'aria-label': title || 'Review', tabindex: '-1' },
         el('div', { class: 'qz-head' }, el('div', { class: 'display qz-header' }, el('span', { text: title || 'What to fix' })), closeBtn),
         list.length ? reviewList(list) : el('div', { class: 'qz-q', text: 'Nothing to review. Every answer was right.' }),
-        doneBtn);
+        el('div', { class: 'qz-foot' }, doneBtn));
       const veil = el('div', { class: 'veil qz-veil' }, modal);
       let done = false;
       const fin = () => { if (done) return; done = true; window.removeEventListener('keydown', onKey, true); sfx('click'); leave(veil, () => { veil.remove(); openCount--; resolve(); }); };
-      const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); if (!e.repeat) fin(); } };
+      const onKey = (e) => {
+        if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); if (!e.repeat) fin(); }
+        else if (strayKey(e, modal, true)) { e.preventDefault(); e.stopPropagation(); }
+      };
       closeBtn.addEventListener('click', fin); doneBtn.addEventListener('click', fin);
       window.addEventListener('keydown', onKey, true);
       root().appendChild(veil); openCount++;
+      toFocus(modal);
       sfx('card');
     });
   }
@@ -460,19 +522,29 @@
   function frame(title, sub) {
     const pips = el('div', { class: 'bz-pips', role: 'img', 'aria-label': 'Progress' });
     const body = el('div', { class: 'bz-body' });
-    const modal = el('div', { class: 'modal paper bz qz-card-in', role: 'dialog', 'aria-modal': 'true' },
+    const modal = el('div', { class: 'modal paper bz qz-card-in', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Bonus round', tabindex: '-1' },
       el('div', { class: 'bz-head' },
         el('div', { class: 'bz-top' }, el('span', { class: 'eyebrow bz-eyebrow' }, garnish('chest', 16), 'Bonus round'), pips),
         el('h2', { class: 'display bz-title', text: title }),
         el('div', { class: 'bz-sub', text: sub })),
       body);
     const veil = el('div', { class: 'veil qz-veil' }, modal);
-    const esc = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); } };
+    const esc = (e) => { if (e.key === 'Escape' || strayKey(e, modal, true)) { e.preventDefault(); e.stopPropagation(); } };
     window.addEventListener('keydown', esc, true);
     root().appendChild(veil); openCount++;
+    const cue = scrollCue(veil);
+    toFocus(modal);
     sfx('chest');
     let dots = [];
     return { veil, modal, body,
+      /* call after drawing a card: on a short screen the type only ever gets tighter during one round, so it never jumps back */
+      fit() { fit(veil, modal, true); cue(); },
+      /* a button pinned to the bottom edge of the card (it stays on screen however tall the card is). Returns the footer. */
+      foot(btn) { const f = el('div', { class: 'qz-foot' }, btn); modal.appendChild(f); settle(veil, modal); cue(); return f; },
+      unfoot(f) { if (f) f.remove(); cue(); },
+      /* while a judged card grows (correction, button) keep the top of the frame where it is; release before the next card */
+      hold() { holdTop(veil, modal); },
+      release() { modal.style.marginTop = ''; },
       /* progress strip: one pip per card/step. state: '' | 'cur' | 'on' | 'ok' | 'no' */
       steps(n) { pips.innerHTML = ''; dots = []; for (let i = 0; i < n; i++) { const d = el('i'); dots.push(d); pips.appendChild(d); } },
       step(i, state, label) { if (dots[i]) dots[i].className = state || ''; if (label) pips.setAttribute('aria-label', label); },
@@ -508,6 +580,7 @@
     fr.steps(items.length);
     for (let i = 0; i < items.length; i++) {
       const it = items[i];
+      fr.release();
       fr.step(i, 'cur', 'Card ' + (i + 1) + ' of ' + items.length);
       const card = cfg.card(it, i);
       card.classList.add('bz-in');
@@ -518,8 +591,10 @@
       const btns = options.map((o, k) => { const bt = el('button', { class: 'btn bz-opt ' + (o.cls || ''), type: 'button' },
         el('span', { class: 'qz-key', text: String(k + 1) }), el('span', { class: 'qz-choice-text', text: o.text })); bt.style.setProperty('--i', String(k)); return bt; });
       btns.forEach((bt) => optBox.appendChild(bt));
+      fr.fit();
       const k = await pickOne(btns);
       const ok = k === it.answer;
+      fr.hold();
       T.add(it.fact, ok);
       btns.forEach((bt, j) => { bt.disabled = true; bt.classList.add(j === it.answer ? 'is-right' : j === k ? 'is-wrong' : 'is-dim'); });
       if (options[it.answer] && options[it.answer].medal) btns[it.answer].insertBefore(medal(options[it.answer].medal, 22), btns[it.answer].firstChild);   /* the cause medal shows only now */
@@ -530,7 +605,14 @@
       if (cfg.after) cfg.after(it, ok, card, i);
       if (!ok && it.fix) card.appendChild(el('div', { class: 'bz-fix', html: it.fixShort || it.fix }));
       else if (it.note) card.appendChild(el('div', { class: 'bz-note', text: it.note }));
-      await sleep(ok ? (it.note ? 1000 : 430) : 1700);
+      if (ok) await sleep(it.note ? 1000 : 430);
+      else {   /* a miss waits for him: time to read the correction */
+        const go = el('button', { class: 'btn primary big', type: 'button', text: i === items.length - 1 ? 'Continue' : 'Got it' });
+        const f = fr.foot(go);
+        try { card.scrollIntoView({ block: 'nearest' }); } catch (e) { /* older browsers */ }
+        await waitContinue(go, 450);
+        fr.unfoot(f);
+      }
     }
     return { correct, total: items.length, fixes };
   }
@@ -556,7 +638,7 @@
       },
     },
     causes: {
-      title: 'M.A.I.N. OR NOT?', sub: 'Is it one of the causes of World War I?',
+      title: 'CAUSE OR NOT?', sub: 'Is it one of the causes of World War I?',
       async run(fr, T) {
         const items = U.shuffle(STUDY.terms).map((t) => ({ t, answer: t.cause ? 0 : 1, fact: t.cause ? 'cause:main' : 'cause:' + t.id,
           fix: b(t.name) + (t.cause ? ' IS a cause — the ' + t.letter + ' in M.A.I.N.' : ' is NOT a cause. ' + U.esc(t.note.replace(/^NOT a cause of WWI: /, '').replace(/^./, (ch) => ch.toUpperCase()))),
@@ -570,7 +652,7 @@
       },
     },
     ls: {
-      title: 'LONG-TERM OR SPARK?', sub: 'L = built up for years. S = the one event that lit the fuse.',
+      title: 'LONG-TERM OR SPARK?', sub: 'Is it a long-term cause, or the spark?',
       async run(fr, T) {
         const base = STUDY.longOrSpark.filter((x) => !x.variant);
         const vars = U.shuffle(STUDY.longOrSpark.filter((x) => x.variant));
@@ -608,7 +690,7 @@
               p.appendChild(el('span', { class: 'bz-blank' + (f ? (f.ok ? ' ok' : ' no') : '') + (i === cur && !f ? ' cur' : '') + (i === fresh ? ' snap' : ''), text: f ? st0.blanks[i].answer : '' }));
             }
           });
-          return el('div', { class: 'bz-card story' }, el('div', { class: 'eyebrow bz-wire', text: 'Sarajevo · June 28' }), p);
+          return el('div', { class: 'bz-card story' }, el('div', { class: 'eyebrow bz-wire', text: 'Telegram · urgent' }), p);
         };
         const r = await classify(fr, T, items, {
           optClass: 'words',
@@ -657,11 +739,12 @@
             list.appendChild(btn);
           });
           fr.body.appendChild(list);
+          fr.fit();
         });
       },
     },
     central: {
-      title: 'BEARS ATE GREEN ORANGES', sub: 'Tap the FOUR Central Powers, then Check.',
+      title: 'THE CENTRAL POWERS', sub: 'Tap the four Central Powers, then Check.',
       run(fr, T) {
         return new Promise((res) => {
           const pool = U.shuffle(STUDY.central.concat(U.shuffle(STUDY.alliedMain || STUDY.allied).slice(0, 5), STUDY.neutral.slice(0, 1)));
@@ -698,9 +781,12 @@
             for (let i = 0; i < 4; i++) fr.step(i, i < correct ? 'ok' : 'no');
             T.add('sides:central4', correct === 4);
             sfx(correct === 4 ? 'correct' : 'wrong');
-            setTimeout(() => res({ correct, total: 4, fixes, note: '<b>B</b>ears <b>A</b>te <b>G</b>reen <b>O</b>ranges = Bulgaria, Austria-Hungary, Germany, Ottoman Empire.' }), correct === 4 ? 800 : 1700);
+            const out = { correct, total: 4, fixes, note: '<b>B</b>ears <b>A</b>te <b>G</b>reen <b>O</b>ranges = Bulgaria, Austria-Hungary, Germany, Ottoman Empire.' };
+            if (correct === 4) setTimeout(() => res(out), 800);
+            else { check.textContent = 'Continue'; check.disabled = false; waitContinue(check, 450).then(() => res(out)); }   /* a miss waits for him */
           });
           fr.body.append(grid, check);
+          fr.fit();
         });
       },
     },
@@ -725,15 +811,17 @@
       if (perfect) { S.bonusPerfect++; SaveX.commit(); }
       sfx(perfect ? 'streak' : 'card');
       fr.clearSteps();
+      fr.release();
       fr.body.innerHTML = '';
       const cont = el('button', { class: 'btn primary big', type: 'button', text: 'Continue' });
       fr.body.appendChild(el('div', { class: 'bz-result' + (perfect ? ' perfect' : '') },
         el('span', { class: 'stamp qz-stamp ' + (perfect ? 'good' : fair ? 'mid' : 'bad'), text: perfect ? 'PERFECT' : fair ? 'NOT BAD' : 'STUDY THIS' }),
         el('div', { class: 'display bz-score num', text: r.correct + ' / ' + r.total }),
         r.fixes && r.fixes.length ? el('div', { class: 'bz-fixbox' }, el('div', { class: 'eyebrow', text: 'Get these next time' }),
-          el('ul', { class: 'bz-fixes' }, r.fixes.map((h) => el('li', {}, ico('check', 16), el('span', { html: h }))))) : '',
-        r.note ? el('div', { class: 'bz-note', html: r.note }) : '',
-        cont));
+          el('ul', { class: 'bz-fixes' }, r.fixes.map((h) => el('li', {}, el('span', { html: h }))))) : '',
+        r.note ? el('div', { class: 'bz-note', html: r.note }) : ''));
+      fr.foot(cont);
+      try { fr.veil.scrollTop = 0; } catch (e) { /* ignore */ }
       if (perfect) confetti(fr.modal);
       await waitContinue(cont, 450);
     } catch (e) { if (window.console) console.error('bonus round failed', e); }
@@ -742,19 +830,37 @@
   }
 
   /* ================= practice test ================= */
-  const norm = (s) => String(s == null ? '' : s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/&/g, 'and').replace(/[^a-z0-9]/g, '').replace(/^the(?=.{3})/, '');
+  const norm = (s) => String(s == null ? '' : s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/&/g, 'and').replace(/[^a-z0-9]/g, '').replace(/^the(?=.{2})/, '');
+  /* edit distance; two swapped neighbouring letters count as one slip */
   function lev(a, c) {
     const m = a.length, n = c.length; if (!m) return n; if (!n) return m;
-    let prev = []; for (let j = 0; j <= n; j++) prev[j] = j;
-    for (let i = 1; i <= m; i++) { const cur = [i]; for (let j = 1; j <= n; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === c[j - 1] ? 0 : 1)); prev = cur; }
+    let prev2 = null, prev = []; for (let j = 0; j <= n; j++) prev[j] = j;
+    for (let i = 1; i <= m; i++) {
+      const cur = [i];
+      for (let j = 1; j <= n; j++) {
+        let v = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === c[j - 1] ? 0 : 1));
+        if (prev2 && j > 1 && a[i - 1] === c[j - 2] && a[i - 2] === c[j - 1]) v = Math.min(v, prev2[j - 2] + 1);
+        cur[j] = v;
+      }
+      prev2 = prev; prev = cur;
+    }
     return prev[n];
   }
-  function fuzzy(input, alias) {
-    if (input === alias) return true;
-    const L = alias.length, tol = L <= 4 ? 0 : L <= 7 ? 1 : L <= 11 ? 2 : 3;
-    if (Math.abs(input.length - L) > tol) return false;
-    return lev(input, alias) <= tol;
+  /* how many slips a spelling of this length may have: none in short words, never more than two */
+  const slack = (L) => (L <= 4 ? 0 : L <= 7 ? 1 : 2);
+  /* a different real answer that happens to sit one slip away from a right one */
+  const NEVER = { prussia: 1, prussianempire: 1 };
+  /* how far what he typed is from one accepted spelling; -1 when it is too far to count */
+  function near(input, alias) {
+    if (input === alias) return 0;
+    const tol = slack(alias.length);
+    if (!tol || NEVER[input] || Math.abs(input.length - alias.length) > tol) return -1;
+    const d = lev(input, alias);
+    return d <= tol ? d : -1;
   }
+  const fuzzy = (input, alias) => near(input, alias) >= 0;
+  /* the year blank may come with a date around it ("June 28, 1914"), but every year in it has to be 1914 */
+  const only1914 = (v) => { const m = String(v).match(/\d{4,}/g) || []; return m.length > 0 && m.every((y) => y === '1914'); };
   const AL = {
     'Germany': ['germany', 'germanempire', 'deutschland'],
     'Austria-Hungary': ['austriahungary', 'austria', 'austrohungary', 'austrohungarianempire', 'austriahungarianempire', 'austrohungarian', 'austriahungaryempire', 'austriaandhungary'],
@@ -767,26 +873,33 @@
   const G = (names) => names.map((n) => ({ name: n, aliases: AL[n] || [norm(n)] }));
   const TYPED = [
     { id: 'central', must: true, fact: 'sides:central4', topic: 'sides', q: 'Type the four Central Powers.', slots: 4, need: 4, groups: G(STUDY.central), answerText: 'Germany, Austria-Hungary, Ottoman Empire, Bulgaria', explain: 'Bears Ate Green Oranges: Bulgaria, Austria-Hungary, Germany, Ottoman Empire.' },
-    { id: 'allied', fact: 'sides:allied4', topic: 'sides', q: 'Name four Allied Powers. (Hint: not the USA. It was neutral when the war began.)', slots: 4, need: 4, groups: G(STUDY.allied), answerText: 'Any four of: Great Britain, France, Russia, Italy, Serbia (also Belgium or Japan)', explain: STUDY.lines.allied5 || '' },
+    { id: 'allied', fact: 'sides:allied4', topic: 'sides', q: 'Name four Allied Powers.', slots: 4, need: 4, groups: G(STUDY.allied), answerText: 'Any four of: Great Britain, France, Russia, Italy, Serbia (also Belgium or Japan)', explain: STUDY.lines.allied5 || '' },
     { id: 'main', fact: 'cause:main', topic: 'vocab', q: 'What does M.A.I.N. stand for? Type the four causes.', slots: 4, need: 4, labels: ['M', 'A', 'I', 'N'], groups: G(['Militarism', 'Alliances', 'Imperialism', 'Nationalism']), answerText: 'Militarism, Alliances, Imperialism, Nationalism', explain: STUDY.lines.main || '' },
-    { id: 'assassin', fact: 'spark:assassin', topic: 'spark', q: 'Who assassinated Archduke Franz Ferdinand?', slots: 1, need: 1, groups: [{ name: 'Gavrilo Princip', aliases: ['gavriloprincip', 'princip', 'gavrilo', 'gavriloprinciple'] }], answerText: 'Gavrilo Princip', explain: STUDY.lines.story || '' },
+    { id: 'assassin', fact: 'spark:assassin', topic: 'spark', q: 'Who assassinated Archduke Franz Ferdinand?', slots: 1, need: 1, groups: [{ name: 'Gavrilo Princip', aliases: ['gavriloprincip', 'princip', 'gavrilo', 'gavriloprinciple', 'principle'] }], answerText: 'Gavrilo Princip', explain: STUDY.lines.story || '' },
     { id: 'city', fact: 'spark:city', topic: 'spark', q: 'In which city was the Archduke assassinated?', slots: 1, need: 1, groups: [{ name: 'Sarajevo', aliases: ['sarajevo'] }], answerText: 'Sarajevo', explain: STUDY.lines.story || '' },
-    { id: 'year', fact: 'spark:date', topic: 'spark', q: 'In what year was Archduke Franz Ferdinand assassinated?', slots: 1, need: 1, groups: [{ name: '1914', aliases: ['1914', 'june281914'] }], answerText: '1914 (June 28, 1914)', explain: STUDY.lines.story || '' },
+    { id: 'year', fact: 'spark:date', topic: 'spark', q: 'In what year was Archduke Franz Ferdinand assassinated?', slots: 1, need: 1, test: only1914, groups: [{ name: '1914', aliases: ['1914', 'june281914'] }], answerText: '1914 (June 28, 1914)', explain: STUDY.lines.story || '' },
     { id: 'heir', fact: 'spark:heir', topic: 'spark', q: 'Archduke Franz Ferdinand was heir to the throne of which empire?', slots: 1, need: 1, groups: G(['Austria-Hungary']), answerText: 'Austria-Hungary', explain: STUDY.lines.story || '' },
     { id: 'usa', fact: 'ex:isolationism', topic: 'vocab', q: "Which vocabulary term describes the United States' position when the war began in 1914?", slots: 1, need: 1, groups: [{ name: 'Isolationism', aliases: ['isolationism', 'isolationist', 'isolation'] }], answerText: 'Isolationism', explain: 'Isolationism: the United States followed a policy of neutrality in 1914 and refused to join the fighting in Europe.' },
     { id: 'africa', fact: 'imp:africa', topic: 'compete', q: 'Which continent were European countries competing to colonize the most?', slots: 1, need: 1, groups: [{ name: 'Africa', aliases: ['africa'] }], answerText: 'Africa', explain: 'Africa — the "Scramble for Africa."' },
     { id: 'navy', fact: 'mil:best-navy', topic: 'compete', q: "Which country had the world's best navy before WWI?", slots: 1, need: 1, groups: G(['Great Britain']), answerText: 'Great Britain', explain: "Great Britain had the world's best navy; Germany tried to build a rival navy to match it." },
     { id: 'rival', fact: 'mil:rival-navy', topic: 'compete', q: "Which country tried to build a rival navy to match Great Britain's?", slots: 1, need: 1, groups: G(['Germany']), answerText: 'Germany', explain: "Germany tried to build a navy to rival Great Britain's — the naval arms race." },
   ];
+  /* each typed value goes to the CLOSEST answer nobody has claimed yet: exact spellings first, then one slip, then two */
   function gradeTyped(item, values) {
-    const used = {}; let got = 0;
-    (values || []).forEach((v) => {
+    const raw = (values || []).filter((v) => v != null && String(v).trim());
+    if (item.test) { const hit = raw.some((v) => item.test(v)) ? 1 : 0; return { ok: hit >= item.need, got: hit }; }
+    const pairs = [];
+    raw.forEach((v, vi) => {
       const n = norm(v); if (!n) return;
-      for (let g = 0; g < item.groups.length; g++) {
-        if (used[g]) continue;
-        if (item.groups[g].aliases.some((a) => fuzzy(n, a))) { used[g] = true; got++; return; }
-      }
+      item.groups.forEach((grp, gi) => {
+        let best = -1;
+        grp.aliases.forEach((a) => { const d = near(n, a); if (d >= 0 && (best < 0 || d < best)) best = d; });
+        if (best >= 0) pairs.push([best, vi, gi]);
+      });
     });
+    pairs.sort((x, y) => x[0] - y[0] || x[1] - y[1] || x[2] - y[2]);
+    const usedV = {}, usedG = {}; let got = 0;
+    pairs.forEach((x) => { if (usedV[x[1]] || usedG[x[2]]) return; usedV[x[1]] = usedG[x[2]] = true; got++; });
     return { ok: got >= item.need, got };
   }
   function buildPractice() {
@@ -803,40 +916,56 @@
     typed.forEach((t, i) => items.splice(Math.min(items.length, 4 + i * 6), 0, { typed: t, fact: t.fact, topic: t.topic }));
     return items;
   }
-  function practiceTest() { return serial(runPractice); }
+  function practiceTest() { return once('practice', runPractice); }
   function runPractice() {
     st();
     return new Promise((resolve) => {
       const wrap = el('div', { class: 'wrap' });
-      const screen = el('div', { class: 'screen pt qz-screen-in' }, wrap);
+      const screen = el('div', { class: 'screen pt qz-screen-in', tabindex: '-1' }, wrap);
       root().appendChild(screen); openCount++;
-      let keyFn = null, last = { score: 0, total: 0, pct: 0 }, closed = false;
-      const setKey = (fn) => { if (keyFn) window.removeEventListener('keydown', keyFn, true); keyFn = fn; if (fn) window.addEventListener('keydown', fn, true); };
-      const close = () => { if (closed) return; closed = true; setKey(null); sfx('click'); leave(screen, () => { screen.remove(); openCount--; resolve(last); }); };
+      const cue = scrollCue(screen);
+      toFocus(screen);
+      let keyFn = null, last = { score: 0, total: 0, pct: 0 }, closed = false, armT = 0, goT = 0;
+      /* ONE key listener for the whole test (the cards only swap what it does), removed on every way out.
+         Space / Enter never reach the button behind the test. */
+      const onKey = (e) => { if (closed) return; if (keyFn) keyFn(e); if (!e.defaultPrevented && strayKey(e, screen, true)) { e.preventDefault(); e.stopPropagation(); } };
+      window.addEventListener('keydown', onKey, true);
+      const setKey = (fn) => { keyFn = closed ? null : fn; };
+      const close = () => {
+        if (closed) return; closed = true; keyFn = null;
+        window.removeEventListener('keydown', onKey, true); clearTimeout(armT); clearTimeout(goT);
+        sfx('click'); leave(screen, () => { screen.remove(); openCount--; resolve(last); });
+      };
 
       function start() {
-        const items = buildPractice(); const answers = []; let i = 0, armed = false, armT = 0;
+        if (closed) return;
+        const items = buildPractice(); const answers = []; let i = 0, armed = false;
         const count = el('div', { class: 'display pt-count num' });
         const fill = el('i');
+        /* two taps to quit; the armed label is the same width, so nothing in the header moves */
         const quit = el('button', { class: 'btn small ghost pt-quit', type: 'button', text: 'Quit' });
         quit.addEventListener('click', () => {
           if (armed) return close();
-          armed = true; quit.textContent = 'Tap again to quit'; quit.classList.add('danger');
-          clearTimeout(armT); armT = setTimeout(() => { armed = false; quit.textContent = 'Quit'; quit.classList.remove('danger'); }, 2500);
+          armed = true; quit.textContent = 'Tap again'; quit.classList.add('danger'); quit.setAttribute('aria-label', 'Tap again to quit the practice test');
+          clearTimeout(armT); armT = setTimeout(() => { armed = false; quit.textContent = 'Quit'; quit.classList.remove('danger'); quit.removeAttribute('aria-label'); }, 2500);
         });
         const slot = el('div', { class: 'pt-slot' });
+        screen.classList.remove('pt-done');
         wrap.innerHTML = '';
         wrap.append(
-          el('div', { class: 'pt-top' }, el('div', { class: 'grow' }, el('div', { class: 'eyebrow pt-eyebrow' }, garnish('pencil', 16), 'Practice test · no hints'), count), quit),
+          el('div', { class: 'pt-top' }, el('div', { class: 'grow' }, el('div', { class: 'eyebrow pt-eyebrow' }, garnish('pencil', 16), 'Practice test'), count), quit),
           el('div', { class: 'bar pt-bar' }, fill),
           slot);
-        const next = () => { i++; if (i < items.length) show(); else results(items, answers); };
+        const next = () => { if (closed) return; i++; if (i < items.length) show(); else results(items, answers); };
         function show() {
+          if (closed) return;
           const it = items[i]; let moved = false;
+          const shownAt = performance.now();
+          const early = () => performance.now() - shownAt < 350;   /* a tap that was meant for the question before */
           count.textContent = 'Question ' + (i + 1) + ' of ' + items.length;
           fill.style.width = ((i / items.length) * 100) + '%';
           const card = el('div', { class: 'paper pt-card pt-in' });
-          const go = () => { if (moved) return; moved = true; sfx('click'); next(); };
+          const go = () => { if (moved || closed) return; moved = true; sfx('click'); next(); };
           if (it.typed) {
             const t = it.typed;
             const inputs = [], fields = [];
@@ -848,32 +977,34 @@
             }
             const nextBtn = el('button', { class: 'btn primary big', type: 'button', text: i === items.length - 1 ? 'Finish' : 'Next' });
             const save = () => { answers[i] = inputs.map((x) => x.value); };
-            nextBtn.addEventListener('click', () => { save(); go(); });
+            nextBtn.addEventListener('click', () => { if (early()) return; save(); go(); });
             card.append(el('div', { class: 'eyebrow', text: 'Type your answer' }), el('div', { class: 'qz-q', text: t.q }),
               el('div', { class: 'pt-inputs' + (t.slots > 1 ? ' multi' : '') }, fields), el('div', { class: 'mute pt-hint', text: 'Spelling does not have to be perfect.' }), nextBtn);
             setKey((e) => {
               if (e.key !== 'Enter') return;
               e.preventDefault(); e.stopPropagation();
               const at = inputs.indexOf(document.activeElement);
-              if (at >= 0 && at < inputs.length - 1) inputs[at + 1].focus(); else { save(); go(); }
+              if (at >= 0 && at < inputs.length - 1) inputs[at + 1].focus(); else if (!early()) { save(); go(); }
             });
-            setTimeout(() => { try { inputs[0].focus({ preventScroll: true }); } catch (e) { /* ignore */ } }, 60);
+            setTimeout(() => { if (!moved && !closed) toFocus(inputs[0]); }, 60);
           } else {
             const P = it.P;
             const btns = P.choices.map((c, k) => el('button', { class: 'btn qz-choice', type: 'button' }, el('span', { class: 'qz-key', text: String(k + 1) }), el('span', { class: 'qz-choice-text', text: c })));
             btns.forEach((bt, k) => bt.style.setProperty('--i', String(k)));
-            const pick = (k) => { if (moved || answers[i] != null) return; answers[i] = k; btns[k].classList.add('is-picked'); btns.forEach((x) => { x.disabled = true; }); setTimeout(go, 200); };
+            const pick = (k) => { if (moved || closed || answers[i] != null || early()) return; answers[i] = k; btns[k].classList.add('is-picked'); btns.forEach((x) => { x.disabled = true; }); goT = setTimeout(go, 200); };
             btns.forEach((x, k) => x.addEventListener('click', () => pick(k)));
             card.append(el('div', { class: 'qz-q', text: P.q.q }), el('div', { class: 'qz-choices' + (P.choices.length === 2 ? ' two' : '') }, btns));
             setKey((e) => { const n = parseInt(e.key, 10); if (n >= 1 && n <= btns.length) { e.preventDefault(); e.stopPropagation(); if (!e.repeat) pick(n - 1); } });
           }
           slot.innerHTML = ''; slot.appendChild(card);
           screen.scrollTop = 0;
+          fit(screen, card); cue();
         }
         show();
       }
 
       function results(items, answers) {
+        if (closed) return;
         setKey(null);
         const T = tally(); let score = 0; const by = {}; const misses = [];
         items.forEach((it, k) => {
@@ -896,8 +1027,9 @@
         sfx(pct >= 80 ? 'victory' : 'levelup');
         const again = el('button', { class: 'btn big', type: 'button', text: 'Try again' });
         const doneBtn = el('button', { class: 'btn primary big', type: 'button', text: 'Done' });
-        again.addEventListener('click', () => { sfx('click'); start(); });
-        doneBtn.addEventListener('click', close);
+        const shown = performance.now();   /* same stray-tap guard as the questions */
+        again.addEventListener('click', () => { if (performance.now() - shown < 400) return; sfx('click'); start(); });
+        doneBtn.addEventListener('click', () => { if (performance.now() - shown < 400) return; close(); });
         const fills = [];
         const sheet = el('div', { class: 'paper pt-card pt-results pt-in' },
           el('div', { class: 'eyebrow', text: 'Practice test results' }),
@@ -926,19 +1058,25 @@
         /* bars grow from zero once the sheet is on screen */
         setTimeout(() => { fills.forEach((x) => { x[0].style.width = x[1] + '%'; }); }, reduced() ? 0 : 120);
         if (pct === 100) confetti(sheet);
-        screen.scrollTop = 0;
+        screen.classList.add('pt-done');   /* a results page plainly continues: no "more below" tag here */
+        screen.scrollTop = 0; cue();
       }
       start();
     });
   }
 
   /* ================= study notes (codex) ================= */
-  function openCodex() { return serial(runCodex); }
+  function openCodex() { return once('codex', runCodex); }
   function runCodex() {
     st();
     return new Promise((resolve) => {
       const e = U.esc;
-      const dot = (id) => { const x = S.mastery[id]; const bx = x ? x.b : 0; return '<i class="cx-dot b' + (bx >= 2 ? 3 : bx) + (x ? '' : ' new') + '" title="' + (bx >= 2 ? 'Mastered' : x ? 'Learning' : 'Not asked yet') + '"></i>'; };
+      /* ONE mastery dot per line; a line that covers several facts shows the weakest of them */
+      const dot = (...ids) => {
+        let bx = 9, known = true;
+        ids.forEach((id) => { const x = S.mastery[id]; if (!x) known = false; bx = Math.min(bx, x ? x.b : 0); });
+        return '<i class="cx-dot b' + (bx >= 2 ? 3 : bx) + (known ? '' : ' new') + '" title="' + (bx >= 2 ? 'Mastered' : known ? 'Learning' : 'Not asked yet') + '"></i>';
+      };
       const med = (key, px) => '<span data-medal="' + key + '" data-px="' + px + '"></span>';
       const R = readiness();
       const k = (t) => KEYS[t.key].cls;
@@ -967,7 +1105,7 @@
       nots.forEach((t) => {
         h += '<article class="cx-term key-x"><div class="cx-term-head">' + med('X', 40) + '<h3>' + e(t.name) + '</h3><span class="stamp">Not a cause</span></div>'
           + '<p>' + dot('def:' + t.id) + e(t.def) + '</p>'
-          + '<p class="cx-more">' + dot('cause:' + t.id) + dot('ex:' + t.id) + e(t.note) + '</p>'
+          + '<p class="cx-more">' + dot('cause:' + t.id, 'ex:' + t.id) + e(t.note) + '</p>'
           + (t.clue ? '<p class="cx-more">' + dot('clue:' + t.id) + '<span class="eyebrow">Clue words</span> “' + e(t.clue) + '”</p>' : '') + '</article>';
       });
       h += '</div></section>';
@@ -979,7 +1117,7 @@
         + STUDY.central.map((c) => '<li>' + dot('side:' + c) + '<b>' + e(c) + '</b></li>').join('') + '</ul></div>'
         + '<div class="cx-side allied"><h3>Allied Powers</h3><div class="cx-side-sub">' + dot('sides:allied4') + 'know four</div><ul>'
         + (STUDY.alliedMain || []).map((c) => '<li>' + dot('side:' + c) + '<b>' + e(c) + '</b>' + (c === 'Italy' ? '<span class="cx-aside">' + dot('sides:italy1915') + 'switched sides to join the Allies in 1915</span>' : c === 'Great Britain' ? '<span class="cx-aside">(United Kingdom)</span>' : '') + '</li>').join('')
-        + '<li class="cx-also">' + dot('side:Belgium') + dot('side:Japan') + 'Also accepted: <b>Belgium</b>, <b>Japan</b></li></ul></div></div>'
+        + '<li class="cx-also">' + dot('side:Belgium', 'side:Japan') + 'Also accepted: <b>Belgium</b>, <b>Japan</b></li></ul></div></div>'
         + '<p class="cx-mn">' + dot('sides:mnemonic') + '“' + words.map((w) => '<b>' + e(w[0][0]) + '</b>' + e(w[0].slice(1))).join(' ') + '” = '
         + words.map((w) => '<b>' + e(w[1][0]) + '</b>' + e(w[1].slice(1))).join(', ') + '</p>'
         + '<p class="cx-mn warn">' + dot('side:United States') + '<b>NOT the USA.</b> It was neutral when the war began.</p></section>';
@@ -988,7 +1126,7 @@
       h += sec(3) + part(3, 'Competition between nations') + '<p class="cx-lead">' + e(cm.intro || '') + '</p>'
         + '<h3 class="cx-sub">' + med('I', 26) + 'Imperialism: the race for colonies</h3><dl class="cx-qa">'
         + '<div><dt>Continent colonized the most?</dt><dd>' + dot('imp:africa') + '<b>Africa</b> (the “Scramble for Africa”)</dd></div>'
-        + '<div><dt>What did countries hope to gain?</dt><dd>' + dot('imp:resources') + e(cm.benefits[0] || '') + '</dd><dd>' + dot('imp:benefits') + e(cm.benefits[1] || '') + '</dd><dd>' + dot('imp:benefits') + e(cm.benefits[2] || '') + '</dd></div>'
+        + '<div><dt>What did countries hope to gain?</dt><dd>' + dot('imp:resources') + e(cm.benefits[0] || '') + '</dd><dd>' + dot('imp:benefits') + e(cm.benefits[1] || '') + '</dd><dd class="cx-cont">' + e(cm.benefits[2] || '') + '</dd></div>'
         + '<div><dt>Why did it breed suspicion?</dt><dd>' + dot('imp:suspicion') + e(cm.suspicion || '') + '</dd></div></dl>'
         + '<h3 class="cx-sub">' + med('M', 26) + 'Militarism: the naval race</h3><dl class="cx-qa">'
         + '<div><dt>World’s best navy?</dt><dd>' + dot('mil:best-navy') + '<b>Great Britain</b></dd></div>'
@@ -999,8 +1137,8 @@
 
       /* ---- Part 4 ---- */
       h += sec(4) + part(4, 'The spark') + '<p class="cx-lead">' + dot('spark:keg') + e(STUDY.lines.keg || '') + '</p><p class="cx-story">';
-      STUDY.story.parts.forEach((p, i) => { h += e(p); if (i < STUDY.story.blanks.length) { const bl = STUDY.story.blanks[i]; h += dot(bl.fact) + '<mark>' + e(bl.answer) + '</mark>'; } });
-      h += '</p><h3 class="cx-sub">' + med('S', 26) + 'The chain reaction ' + dot('chain:order') + '</h3><ol class="cx-chain">'
+      STUDY.story.parts.forEach((p, i) => { h += e(p); if (i < STUDY.story.blanks.length) { const bl = STUDY.story.blanks[i]; h += '<span class="cx-nb">' + dot(bl.fact) + '<mark>' + e(bl.answer) + '</mark></span>'; } });
+      h += '</p><h3 class="cx-sub">' + med('S', 26) + '<span>' + dot('chain:order') + 'The chain reaction</span></h3><ol class="cx-chain">'
         + STUDY.chain.map((s, i) => '<li><span class="cx-n display">' + (i + 1) + '</span><span class="cx-chain-t">' + dot('chain:' + (i + 1)) + e(s) + '</span></li>').join('') + '</ol>'
         + '<h3 class="cx-sub">Long-term cause or spark?</h3><ul class="cx-ls">'
         + STUDY.longOrSpark.filter((x) => !x.variant).map((x) => '<li><span class="cx-badge ' + (x.ans === 'L' ? 'l' : 's') + ' display">' + x.ans + '</span><span>' + dot(x.fact) + e(x.text) + '</span></li>').join('')
@@ -1008,10 +1146,14 @@
 
       const wrap = el('div', { class: 'wrap cx', html: h });
       wrap.querySelectorAll('[data-medal]').forEach((n) => { n.replaceWith(medal(n.getAttribute('data-medal'), parseInt(n.getAttribute('data-px'), 10) || 28)); });
-      const screen = el('div', { class: 'screen cx-screen qz-screen-in' }, wrap);
+      const screen = el('div', { class: 'screen cx-screen qz-screen-in', tabindex: '-1' }, wrap);
       let done = false;
       const close = () => { if (done) return; done = true; window.removeEventListener('keydown', onKey, true); sfx('click'); leave(screen, () => { screen.remove(); openCount--; resolve(); }); };
-      const onKey = (ev) => { if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); close(); } };
+      const onKey = (ev) => {
+        if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); close(); }
+        else if (strayKey(ev, screen, ev.key === 'Enter')) { ev.preventDefault(); ev.stopPropagation(); }   /* never the tile behind the notes */
+        else if (ev.key === ' ' && document.activeElement === screen) ev.stopPropagation();                  /* Space just scrolls the notes */
+      };
       window.addEventListener('keydown', onKey, true);
       wrap.querySelector('.cx-close').addEventListener('click', close);
       wrap.querySelectorAll('.cx-jump').forEach((bt) => bt.addEventListener('click', () => {
@@ -1024,6 +1166,7 @@
       bottom.addEventListener('click', close);
       wrap.appendChild(bottom);
       root().appendChild(screen); openCount++;
+      toFocus(screen);
       sfx('card');
     });
   }

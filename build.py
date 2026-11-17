@@ -8,7 +8,7 @@
 
 Every source file gets its own <style>/<script> tag, so a mistake in one file cannot take the others down.
 """
-import pathlib, sys
+import base64, pathlib, sys
 
 ROOT = pathlib.Path(__file__).resolve().parent
 SRC = ROOT / "src"
@@ -18,8 +18,13 @@ JS = ["core.js", "save.js", "audio.js", "data.js", "quiz.js", "meta.js", "game-d
       "game-stage.js", "game-ui.js", "game.js"]
 
 TITLE = "Powder Keg 1914"
-FONTS = ('<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One'
-         '&family=Nunito:wght@400;600;700;800;900&family=Special+Elite&display=swap">')
+# The three typefaces travel inside the page (src/fonts, latin subset, ~110 KB), so the game looks right with no
+# internet. If an embedded face ever fails to load, BOOT falls back to the Google Fonts stylesheet.
+GOOGLE_FONTS = ("https://fonts.googleapis.com/css2?family=Alfa+Slab+One"
+                "&family=Nunito:wght@400;600;700;800;900&family=Special+Elite&display=swap")
+FONT_FACES = [("Alfa Slab One", "400", "alfa-slab-one-latin-400.woff2"),
+              ("Nunito", "200 1000", "nunito-latin-wght.woff2"),
+              ("Special Elite", "400", "special-elite-latin-400.woff2")]
 BODY = ('<div id="app"><canvas id="game-canvas"></canvas><div id="hud" hidden></div>'
         '<div id="screens"></div><div id="modals"></div><div id="toasts"></div></div>')
 BOOT = r"""
@@ -31,11 +36,30 @@ BOOT = r"""
     step('meta', function () { window.Meta && Meta.init(); });
     step('game', function () { Game.init(); });
     step('title', function () { if (window.Meta) Meta.showTitle(); else Game.start({}); });
+    step('fonts', function () {
+      var web = function () { if (document.getElementById('pk-webfonts')) return; var l = document.createElement('link'); l.id = 'pk-webfonts'; l.rel = 'stylesheet'; l.href = '__GOOGLE_FONTS__'; document.head.appendChild(l); };
+      if (!document.fonts || !document.fonts.load) return;
+      Promise.all(['400 16px "Alfa Slab One"', '800 16px "Nunito"', '400 16px "Special Elite"'].map(function (f) { return document.fonts.load(f); }))
+        .then(function (r) { if (r.some(function (a) { return !a || !a.length; })) web(); }, web);
+    });
     step('icon', function () { if (window.PK && PK.iconURL) { var l = document.createElement('link'); l.rel = 'icon'; l.href = PK.iconURL('keg', 64); document.head.appendChild(l); } });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 })();
 """
+
+
+def fonts_tag():
+    """Embedded @font-face rules, or the plain Google Fonts link when src/fonts is not there."""
+    rules = []
+    for family, weight, name in FONT_FACES:
+        p = SRC / "fonts" / name
+        if not p.exists():
+            return '<link rel="stylesheet" href="%s">' % GOOGLE_FONTS
+        rules.append("@font-face{font-family:'%s';font-style:normal;font-weight:%s;font-display:block;"
+                     "src:url(data:font/woff2;base64,%s) format('woff2')}"
+                     % (family, weight, base64.b64encode(p.read_bytes()).decode("ascii")))
+    return "<style>\n/* ===== fonts (embedded; licences in src/fonts) ===== */\n%s\n</style>" % "\n".join(rules)
 
 
 def main(argv):
@@ -57,8 +81,8 @@ def main(argv):
         p = SRC / "js" / name
         if not p.exists(): missing.append(name); continue
         js_tags.append("<script>\n/* ===== %s ===== */\n%s\n</script>" % (name, p.read_text(encoding="utf-8").replace("</script", "<\\/script")))
-    js_tags.append("<script>%s</script>" % BOOT)
-    head = '<title>%s</title>\n<meta name="claude:viewport-fit-sides" content="cover">\n%s\n%s' % (TITLE, FONTS, "\n".join(css_tags))
+    js_tags.append("<script>%s</script>" % BOOT.replace("__GOOGLE_FONTS__", GOOGLE_FONTS))
+    head = '<title>%s</title>\n<meta name="claude:viewport-fit-sides" content="cover">\n%s\n%s' % (TITLE, fonts_tag(), "\n".join(css_tags))
     body = "%s\n%s" % (BODY, "\n".join(js_tags))
     standalone = (
         '<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'

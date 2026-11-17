@@ -456,10 +456,11 @@
     banner('ACT ' + g.actDef.n + ' · ' + g.actDef.name, g.actDef.def, g.actDef.color, g.actDef.key === 'S' ? '⚡' : g.actDef.key, 3400); mark('act' + g.actDef.n);
   }
   function director(dt) {
-    const a = g.actDef; if (DBG.noSpawn) return; if (DBG.noLevel) g.actT = 60;
+    const a = g.actDef;
+    if (g.bossState === 'clear') { if ((g.bossT -= dt) <= 0) nextAct(); return; }   /* the beat between a boss going down and the next act (or the win) */
+    if (DBG.noSpawn) return; if (DBG.noLevel) g.actT = 60;
     if (g.bossState === 'none' && g.actT >= a.len - 4) { g.bossState = 'warn'; g.bossT = 4; sfx('boss_warn'); music(g.act === ACTS.length - 1 ? 'finalboss' : 'boss'); }
     else if (g.bossState === 'warn') { if ((g.bossT -= dt) <= 0) { spawnBoss(); g.bossState = 'fight'; } }
-    else if (g.bossState === 'clear') { if ((g.bossT -= dt) <= 0) nextAct(); return; }
     let w = a.waves[0]; for (const x of a.waves) if (g.actT >= x[0]) w = x;
     const rate = w[1] * (a.rate || 1) * g.mult.spawn * (g.bossState === 'fight' ? PK.TUNE.bossAdds : g.bossState === 'warn' ? 0.5 : 1);
     if (g.enemies.length < g.cap) g.spawnAcc += rate * dt; else g.spawnAcc = 0;
@@ -510,7 +511,7 @@
     for (const q of g.corpses) { q.t += dt; if (q.t >= q.life) q.dead = true; }
     g.zoom += (g.zoomT - g.zoom) * Math.min(1, dt * 3);
     for (const q of g.parts) { q.life -= dt; if (q.life <= 0) { q.dead = true; continue; } q.x += q.vx * dt; q.y += q.vy * dt; q.vx *= 0.93; q.vy *= 0.93; }
-    for (const q of g.texts) { q.life -= dt; q.y -= 36 * dt; if (q.life <= 0) q.dead = true; }
+    for (const q of g.texts) { q.life -= dt; if (q.pin) { q.x = g.player.x; q.y = g.player.y + q.pin; } else q.y -= 36 * dt; if (q.life <= 0) q.dead = true; }   /* pin: a hint that stays under the hero */
     for (const q of g.rings) { q.life -= dt; if (q.life <= 0) q.dead = true; }
     for (const q of g.arcs) { q.life -= dt; if (q.life <= 0) q.dead = true; }
     if (g.flash > 0) g.flash -= dt * 1.4;
@@ -532,15 +533,17 @@
   }
   function seedDeco() {
     g.deco = []; const types = Object.keys(ED);
-    for (let i = 0; i < 9; i++) { const a = Math.random() * TAU, sp = rnd(8, 26); g.deco.push(PK.fakeEnemy(types[i % types.length], { x: g.cam.x + rnd(-g.vw / 2, g.vw / 2), y: g.cam.y + rnd(-g.vh / 2, g.vh / 2), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, seed: Math.random() * 10, face: Math.cos(a) >= 0 ? 1 : -1 })); }
+    for (let i = 0; i < 5; i++) { const a = Math.random() * TAU, sp = rnd(8, 22); g.deco.push(PK.fakeEnemy(types[i % types.length], { x: g.cam.x + rnd(-g.vw / 2, g.vw / 2), y: g.cam.y + rnd(-g.vh / 2, g.vh / 2), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, seed: Math.random() * 10, face: Math.cos(a) >= 0 ? 1 : -1 })); }
   }
-  let errN = 0, lagT = 0;
+  let errN = 0, lagT = 0, covT = -1e9, covV = false;
+  /* is the idle backdrop hidden behind an opaque full-screen page (shop, notes, practice test…)? checked 4x a second */
+  function covered(now) { if (now - covT > 250) { covT = now; covV = !!document.querySelector('#screens > .mt-sub, #modals > .screen'); } return covV; }
   function frame(now) {
     requestAnimationFrame(frame);
     if (DBG.turbo) { last = now; return; }
     let dt = (now - last) / 1000; last = now; if (!(dt > 0)) return; const raw = dt; if (dt > 0.05) dt = 0.05;
     try {
-      if (g.state === 'idle') idle(dt);
+      if (g.state === 'idle') { if (covered(now)) return; idle(dt); }
       else if (!g.busy && !g.paused && g.cine > 0) { g.cine -= dt; g.t += dt; updFx(dt); compact(g.fxs); compact(g.corpses); compact(g.parts); compact(g.rings); compact(g.texts); }
       else if (!g.busy && !g.paused && g.hitStop > 0) { g.hitStop -= dt; }
       else if (!g.busy && !g.paused) {
@@ -566,7 +569,7 @@
     else if (g.pendChest > 0) { g.pendChest--; chestFlow(); }
     else if (p.pendingLv > 0) levelFlow();
   }
-  function begin() { g.busy = true; keys = {}; g.joy.on = false; duck(true); }
+  function begin() { g.busy = true; keys = {}; g.joy.on = false; duck(true); PK.UI.banner('', ''); }   /* a question takes the stage: the act card steps aside */
   function end() { g.busy = false; duck(false); last = performance.now(); const p = g.player; if (p && p.iframes < 0.8) p.iframes = 0.8; }
 
   /* ================= modals + flows ================= */
@@ -729,7 +732,7 @@
     PK.UI.reset(); hudShow(true); hudAct(); hudWeps(); music(g.actDef.music);
     banner('ACT ' + g.actDef.n + ' · ' + g.actDef.name, g.actDef.def, g.actDef.color, g.actDef.key === 'S' ? '⚡' : g.actDef.key, 3400);
     PK.dprCap = 2; PK.lowFx = false; R.resize(g);
-    text(0, 64, !U.isTouch() ? 'Move with WASD or the arrow keys' : window.innerWidth > 900 ? 'Drag to move, or use WASD / arrow keys' : 'Drag anywhere to move', '#ffffff', 15, 4.5);
+    text(0, 74, !U.isTouch() ? 'Move with WASD or the arrow keys' : window.innerWidth > 900 ? 'Drag to move, or use WASD / arrow keys' : 'Drag anywhere to move', '#ffffff', 15, 4.5); g.texts[g.texts.length - 1].pin = 74;
     mark('act' + g.actDef.n);
     last = performance.now();
     wakeOn();
