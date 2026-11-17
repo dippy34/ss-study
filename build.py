@@ -31,6 +31,7 @@ BOOT = r"""
     step('meta', function () { window.Meta && Meta.init(); });
     step('game', function () { Game.init(); });
     step('title', function () { if (window.Meta) Meta.showTitle(); else Game.start({}); });
+    step('icon', function () { if (window.PK && PK.iconURL) { var l = document.createElement('link'); l.rel = 'icon'; l.href = PK.iconURL('keg', 64); document.head.appendChild(l); } });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 })();
