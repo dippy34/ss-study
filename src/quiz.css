@@ -309,6 +309,10 @@
 .pt-topic-top{display:flex;justify-content:space-between;gap:8px;font-weight:800;font-size:.95rem}
 .pt-topic .bar>i{background:var(--good-ink);transition:width .5s var(--qz-ease)}
 .pt-actions .btn{flex:1;font-size:1.12rem;padding:.8em .6em}
+.pt-slips{gap:8px}
+.pt-slip{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;font-size:1.02rem;line-height:1.3}
+.pt-slip-you{color:var(--paper-mute);text-decoration:line-through;text-decoration-thickness:1.5px;overflow-wrap:anywhere}
+.pt-slip-to{color:var(--paper-mute)}
 .pt-misses{gap:0}
 .pt-misses>.eyebrow{padding-bottom:12px}
 .pt-miss{display:flex;flex-direction:column;gap:6px;border-top:2px dashed var(--paper-line);padding:14px 0}

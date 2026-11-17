@@ -897,6 +897,13 @@
     return true;
   }
   const SPLIT = /\s*(?:,|;|\/|\n|&|\+|\band\b)\s*/i;
+  /* the proper spelling of an accepted answer that was typed with a slip; '' when it was spelled right */
+  function spelled(item, n) {
+    if (!n) return '';
+    let best = -1, name = '';
+    item.groups.forEach((grp) => grp.aliases.forEach((a) => { const d = near(n, a); if (d >= 0 && (best < 0 || d < best)) { best = d; name = grp.name; } }));
+    return best > 0 ? name : '';
+  }
   /* each typed value goes to the CLOSEST answer nobody has claimed yet: exact spellings first, then one slip, then two */
   function gradeTyped(item, values) {
     const raw = (values || []).filter((v) => v != null && String(v).trim());
@@ -906,15 +913,16 @@
       const v = raw.length ? String(raw[0]) : '', whole = norm(v); if (!whole) return { ok: false, got: 0 };
       const head = norm(v.split(/[,;(\[\/]|\s[-–—]\s/)[0]);
       const hit = known(whole) || (head && known(head)) || looseHit(item, whole);
-      return { ok: !!hit, got: hit ? 1 : 0 };
+      const fixes = []; if (hit) { const sp = spelled(item, known(whole) ? whole : head && known(head) ? head : ''); if (sp) fixes.push({ typed: v.trim(), name: sp }); }
+      return { ok: !!hit, got: hit ? 1 : 0, fixes };
     }
     /* several answers in one box ("Germany, Bulgaria and Austria-Hungary") count one by one */
-    const toks = [];
+    const toks = [], shown = [];
     raw.forEach((v) => {
       const whole = norm(v); if (!whole) return;
-      if (known(whole)) { toks.push(whole); return; }
-      const parts = String(v).split(SPLIT).map(norm).filter(Boolean);
-      if (parts.length > 1) parts.forEach((x) => toks.push(x)); else toks.push(whole);
+      if (known(whole)) { toks.push(whole); shown.push(String(v).trim()); return; }
+      const parts = String(v).split(SPLIT).map((x) => x.trim()).filter((x) => norm(x));
+      if (parts.length > 1) parts.forEach((x) => { toks.push(norm(x)); shown.push(x); }); else { toks.push(whole); shown.push(String(v).trim()); }
     });
     const pairs = [];
     toks.forEach((n, vi) => {
@@ -925,10 +933,10 @@
       });
     });
     pairs.sort((x, y) => x[0] - y[0] || x[1] - y[1] || x[2] - y[2]);
-    const usedV = {}, usedG = {}; let got = 0;
-    pairs.forEach((x) => { if (usedV[x[1]] || usedG[x[2]]) return; usedV[x[1]] = usedG[x[2]] = true; got++; });
+    const usedV = {}, usedG = {}, fixes = []; let got = 0;
+    pairs.forEach((x) => { if (usedV[x[1]] || usedG[x[2]]) return; usedV[x[1]] = usedG[x[2]] = true; got++; if (x[0] > 0) fixes.push({ typed: shown[x[1]], name: item.groups[x[2]].name }); });
     /* listing extra countries to be safe does not count: no more answers than there are boxes */
-    return { ok: got >= item.need && toks.length <= item.slots, got };
+    return { ok: got >= item.need && toks.length <= item.slots, got, fixes };
   }
   function buildPractice() {
     const plan = { vocab: 5, sides: 4, compete: 4, spark: 4 };
@@ -1034,12 +1042,13 @@
       function results(items, answers) {
         if (closed) return;
         setKey(null);
-        const T = tally(); let score = 0; const by = {}; const misses = [];
+        const T = tally(); let score = 0; const by = {}; const misses = [], slips = [];
         items.forEach((it, k) => {
           let ok, yours, right, qtext, explain;
           if (it.typed) {
             const vals = (answers[k] || []).filter((v) => v && v.trim());
-            ok = gradeTyped(it.typed, vals).ok; yours = vals.join(', ') || '(blank)'; right = it.typed.answerText; qtext = it.typed.q; explain = it.typed.explain;
+            const gr = gradeTyped(it.typed, vals); ok = gr.ok; yours = vals.join(', ') || '(blank)'; right = it.typed.answerText; qtext = it.typed.q; explain = it.typed.explain;
+            if (ok) (gr.fixes || []).forEach((f) => { if (slips.length < 6 && !slips.some((x) => x.name === f.name && norm(x.typed) === norm(f.typed))) slips.push(f); });
           } else {
             ok = answers[k] === it.P.answer; yours = answers[k] == null ? '(blank)' : it.P.choices[answers[k]]; right = it.P.choices[it.P.answer]; qtext = it.P.q.q; explain = it.P.q.explain;
           }
@@ -1075,6 +1084,10 @@
           el('div', { class: 'row pt-actions' }, again, doneBtn));
         wrap.innerHTML = '';
         wrap.append(sheet,
+          /* answers that counted but were spelled a little off: show the proper spelling once */
+          slips.length ? el('div', { class: 'paper pt-card pt-slips' },
+            el('div', { class: 'eyebrow', text: 'Counted as right — check the spelling' }),
+            slips.map((f) => el('div', { class: 'pt-slip' }, el('span', { class: 'pt-slip-you', text: f.typed }), el('span', { class: 'pt-slip-to', 'aria-hidden': 'true', text: '→' }), el('b', { text: f.name })))) : null,
           misses.length ? el('div', { class: 'paper pt-card pt-misses' },
             el('div', { class: 'eyebrow', text: 'Review these ' + misses.length + ' — they come back in the game' }),
             misses.map((m) => el('div', { class: 'pt-miss' },
