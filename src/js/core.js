@@ -46,6 +46,7 @@
       opts = opts || {};
       const root = document.getElementById('toasts');
       if (!root) return;
+      root.classList.toggle('low', !!(window.Game && Game.isRunning && Game.isRunning()));   /* during a run toasts sit at the bottom, clear of the HUD */
       const t = U.el('div', { class: 'toast ' + (opts.kind || ''), html });
       root.appendChild(t);
       while (root.children.length > 3) root.removeChild(root.firstChild);

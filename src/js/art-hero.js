@@ -89,7 +89,7 @@
       coat: col, coatD: mix(col, -0.28), coatDD: mix(col, -0.48), coatL: mix(col, 0.4),
       skin: s.skin, skinD: mix(s.skin, -0.2), hair: s.hair, hairD: mix(s.hair, -0.28), brow: s.brow, whiteBrow: id === 'admiral' || id === 'neutral',
       pants: s.pants, pantsD: mix(s.pants, -0.3), boot: s.boot, bootD: mix(s.boot, -0.3) };
-    L.sleeve = id === 'editor' ? '#f6f1e6' : col; L.sleeveD = mix(L.sleeve, -0.3);
+    L.sleeve = id === 'editor' ? '#f6f1e6' : col; L.sleeveD = mix(L.sleeve, -0.3); L.ring = mix(col, 0.8);
     return (LOOKS[key] = L);
   }
 
@@ -262,7 +262,13 @@
   function face(c, L, mood, blink, happy) {
     c.fillStyle = 'rgba(255,105,105,.3)'; ell(c, EX0 - 2.7, EY + 4.0, 2.2, 1.35); c.fill(); ell(c, EX1 + 1.8, EY + 3.8, 2.0, 1.35); c.fill();
     c.lineCap = 'round'; c.lineJoin = 'round';
-    if (mood === 2) {
+    if (mood === 3) {                                                          /* dazed: spiral eyes */
+      ell(c, EX0, EY, 2.6, 3.3); fs(c, '#ffffff', 0.9); ell(c, EX1, EY, 2.9, 3.5); fs(c, '#ffffff', 0.9);
+      c.strokeStyle = OUT; c.lineWidth = 0.95;
+      for (let n = 0; n < 2; n++) { const ex = n ? EX1 : EX0, er = n ? 2.3 : 2.1; c.beginPath(); for (let i = 0; i <= 24; i++) { const a = i * 0.52 + n, q = er * i / 24; if (i) c.lineTo(ex + Math.cos(a) * q, EY + Math.sin(a) * q * 1.15); else c.moveTo(ex, EY); } c.stroke(); }
+    } else if (mood === 4) {                                                   /* cheer: eyes squeezed shut with joy */
+      c.strokeStyle = OUT; c.lineWidth = 1.7; c.beginPath(); c.arc(EX0, EY + 1.5, 2.5, PI * 1.12, PI * 1.88); c.stroke(); c.beginPath(); c.arc(EX1, EY + 1.5, 2.7, PI * 1.12, PI * 1.88); c.stroke();
+    } else if (mood === 2) {
       c.strokeStyle = OUT; c.lineWidth = 1.5; c.beginPath(); c.moveTo(EX0 - 2.1, EY - 2.1); c.lineTo(EX0 + 1.6, EY); c.lineTo(EX0 - 2.1, EY + 2.1); c.moveTo(EX1 + 2.3, EY - 2.1); c.lineTo(EX1 - 1.4, EY); c.lineTo(EX1 + 2.3, EY + 2.1); c.stroke();
     } else if (blink) {
       c.strokeStyle = OUT; c.lineWidth = 1.45; c.beginPath(); c.arc(EX0, EY - 0.8, 2.3, 0.15 * PI, 0.85 * PI); c.stroke(); c.beginPath(); c.arc(EX1, EY - 0.8, 2.5, 0.15 * PI, 0.85 * PI); c.stroke();
@@ -272,19 +278,21 @@
       c.fillStyle = '#ffffff'; dot(c, EX0 - 0.05, EY - 0.5, 0.72); c.fill(); dot(c, EX1 - 0.05, EY - 0.55, 0.78); c.fill();
     }
     const fierce = mood === 0 && L.id === 'firebrand', worried = mood === 1;
-    const bi = fierce ? 1.5 : worried ? -1.3 : 0.25, by = EY - 5.2;
+    const bi = fierce ? 1.5 : worried || mood === 3 ? -1.3 : 0.25, by = EY - (mood === 4 ? 6.0 : 5.2);
     if (L.whiteBrow) { c.strokeStyle = OUT; c.lineWidth = 3.0; c.beginPath(); c.moveTo(EX0 - 2.3, by - bi * 0.3); c.lineTo(EX0 + 1.9, by + bi * 0.6); c.moveTo(EX1 - 1.9, by + bi * 0.6); c.lineTo(EX1 + 2.6, by - bi * 0.3); c.stroke(); c.lineWidth = 1.6; } else c.lineWidth = 1.55;
     c.strokeStyle = L.brow; c.beginPath(); c.moveTo(EX0 - 2.3, by - bi * 0.3); c.lineTo(EX0 + 1.9, by + bi * 0.6); c.moveTo(EX1 - 1.9, by + bi * 0.6); c.lineTo(EX1 + 2.6, by - bi * 0.3); c.stroke();
     const mx = 2.3, my = EY + 3.6;
     if (L.id === 'admiral') return;                                           /* hidden by the moustache */
-    if (mood === 2) { ell(c, mx, my + 1.8, 1.5, 1.9); fs(c, '#5a1f24', 1.0); }
+    if (mood === 4) { c.beginPath(); c.moveTo(mx - 3.5, my + 0.1); c.quadraticCurveTo(mx, my + 1.2, mx + 3.5, my); c.quadraticCurveTo(mx + 0.3, my + 6.6, mx - 3.5, my + 0.1); c.closePath(); fs(c, '#5a1f24', 1.2); c.fillStyle = '#ff7f86'; ell(c, mx + 0.1, my + 3.7, 1.7, 0.95); c.fill(); }
+    else if (mood === 3) { c.strokeStyle = OUT; c.lineWidth = 1.4; c.beginPath(); c.moveTo(mx - 2.8, my + 1.7); c.quadraticCurveTo(mx - 1.4, my + 0.2, mx, my + 1.7); c.quadraticCurveTo(mx + 1.4, my + 3.2, mx + 2.8, my + 1.5); c.stroke(); }
+    else if (mood === 2) { ell(c, mx, my + 1.8, 1.5, 1.9); fs(c, '#5a1f24', 1.0); }
     else if (worried) { c.strokeStyle = OUT; c.lineWidth = 1.3; c.beginPath(); c.moveTo(mx - 2.2, my + 2.2); c.quadraticCurveTo(mx - 1.1, my + 0.9, mx, my + 1.9); c.quadraticCurveTo(mx + 1.1, my + 2.9, mx + 2.2, my + 1.6); c.stroke(); }
     else if (happy) { c.beginPath(); c.moveTo(mx - 2.6, my + 0.6); c.quadraticCurveTo(mx, my + 1.3, mx + 2.6, my + 0.5); c.quadraticCurveTo(mx + 0.2, my + 4.8, mx - 2.6, my + 0.6); c.closePath(); fs(c, '#5a1f24', 1.15); c.fillStyle = '#ff7f86'; ell(c, mx + 0.1, my + 2.9, 1.2, 0.7); c.fill(); }
     else { c.strokeStyle = OUT; c.lineWidth = 1.3; c.beginPath(); c.arc(mx, my - 0.6, 2.7, 0.2 * PI, 0.8 * PI); c.stroke(); }
   }
-  /* variant: 0 calm · 1 calm+happy · 2 blink · 3 blink+happy · 4 worried · 5 hurt */
+  /* variant: 0 calm · 1 calm+happy · 2 blink · 3 blink+happy · 4 worried · 5 hurt · 6 dazed (hat askew) · 7 cheer */
   function bakeHead(c, L, v) {
-    const id = L.id, mood = v === 5 ? 2 : v === 4 ? 1 : 0;
+    const id = L.id, mood = v === 5 ? 2 : v === 4 ? 1 : v === 6 ? 3 : v === 7 ? 4 : 0;
     if (id === 'editor') {                                                    /* bun + pencil behind the ear */
       dot(c, -6.6, -9.6, 4.1); fs(c, L.hair, 1.6);
       c.save(); c.translate(-8.4, 0.2); c.rotate(-2.15); stick(c, 0, 7.6, 1.5, '#ffd23f'); stick(c, 7.4, 8.8, 1.5, '#ff8f9c'); c.fillStyle = '#b8c2c8'; c.fillRect(6.6, -0.75, 0.9, 1.5); c.restore();
@@ -318,7 +326,7 @@
     } else if (id === 'explorer') {                                           /* side-swept fringe */
       c.beginPath(); c.moveTo(-0.6, -6.6); c.quadraticCurveTo(4.6, -3.2, 9.6, -4.8); c.quadraticCurveTo(6.0, -6.6, 5.0, -7.6); c.closePath(); fs(c, L.hair, 1.2);
     }
-    HATS[L.hat](c, L);
+    if (v === 6) { c.save(); c.rotate(-0.34); c.translate(-0.8, -1.6); HATS[L.hat](c, L); c.restore(); } else HATS[L.hat](c, L);
   }
 
   /* ---------------- coat (baked) ---------------- */
@@ -380,31 +388,80 @@
   function boot(c, x, y, col) { rr(c, x - 3.0, y - 1.0, 7.8, 4.5, 2.1); fs(c, col, LW * 0.82); }
   function hand(c, x, y, L) { dot(c, x, y, 2.7); fs(c, L.skin, 1.3); }
 
+  function sprItem(bank, B, W, L) { return bank.item || (bank.item = mk(B, W.box[0], W.box[1], W.box[2], W.box[3], W.bake, L)); }
+  function sprCoat(bank, B, L) { return bank.coat || (bank.coat = mk(B, -12.6, -11.4, 12.6, 11.4, bakeCoat, L)); }
+  function sprHead(bank, B, L, hv) { return bank.head[hv] || (bank.head[hv] = mk(B, -19.8, -22.8, 17.2, 14.6, bakeHead, L, hv)); }
+  function sprGear(bank, B, L) { return bank.gear || (bank.gear = L.id === 'sparky' ? mk(B, -17.4, -14.4, -6.4, 9.8, bakeGear, L) : mk(B, -18.2, -1, -6.4, 10, bakeGear, L)); }
+  function scarf(c, w1, w2, lift) {
+    c.beginPath(); c.moveTo(-5.8, -3.4); c.quadraticCurveTo(-11.4, -3.6 + w1 + lift * 0.4, -15.2, 1.6 + w2 + lift * 1.3);
+    c.moveTo(-5.8, -4.0); c.quadraticCurveTo(-11.8, -6.2 + w1 + lift * 0.5, -17.0, -2.6 + w2 + lift * 1.5);
+    c.strokeStyle = OUT; c.lineWidth = 5.4; c.stroke(); c.strokeStyle = '#ef5038'; c.lineWidth = 3.5; c.stroke();
+    c.strokeStyle = 'rgba(10,17,24,.35)'; c.lineWidth = 0.9; c.beginPath(); c.moveTo(-8.2, -3.9); c.quadraticCurveTo(-11.6, -4.9 + w1 + lift * 0.45, -14.6, -1.2 + w2 + lift * 1.4); c.stroke();
+  }
+  function braid(c, L, sway) {
+    for (let i = 0; i < 3; i++) { ell(c, -10.2 - i * 0.7 - sway * (i + 1) * 0.55, -5.8 + i * 3.7, 2.5 - i * 0.3, 2.3, 0.25); fs(c, L.hair, 1.25); }
+    rr(c, -13.0 - sway * 1.7, 3.7, 2.8, 1.7, 0.7); fs(c, L.coat, 0.9);
+  }
+  function epaulette(c) {
+    rr(c, 7.0, -7.9, 6.4, 3.1, 1.4); fs(c, BRASS, 1.3);
+    c.strokeStyle = BRASS_D; c.lineWidth = 0.9; c.beginPath(); c.moveTo(9.0, -4.6); c.lineTo(9.0, -3.0); c.moveTo(10.7, -4.6); c.lineTo(10.7, -3.0); c.moveTo(12.4, -4.6); c.lineTo(12.4, -3.0); c.stroke();
+  }
+  function star5(c, x, y, r, rot) { c.beginPath(); for (let i = 0; i < 10; i++) { const a = rot + i * PI / 5, q = i & 1 ? r * 0.46 : r; if (i) c.lineTo(x + Math.cos(a) * q, y + Math.sin(a) * q); else c.moveTo(x + Math.cos(a) * q, y + Math.sin(a) * q); } c.closePath(); }
+  function bootUp(c, x, y, col) { rr(c, x - 2.3, y - 4.6, 4.7, 7.8, 2.1); fs(c, col, LW * 0.82); }
+  /* knocked out: sits dazed on the ground, hat askew, spiral eyes, stars circling, gear dropped beside him */
+  function poseDown(c, L, W, bank, B, rt, age) {
+    const id = L.id, u = age < 0.45 ? age / 0.45 : 1, drop = (1 - u) * (1 - u) * -7, wob = Math.sin(rt * 3.6) * 0.06;
+    c.save();
+    if (W.gun) { c.translate(-1.5, 13.4); c.rotate(-0.04); } else if (W.back) { c.translate(-11, 14.4); c.rotate(PI - 0.12); } else { c.translate(13.8, 14.6); c.rotate(-0.1); }
+    put(c, sprItem(bank, B, W, L)); c.restore();
+    limb(c, -1.2, 12.0 + drop, 7.6, 12.3, 5.1, L.pantsD); bootUp(c, 9.2, 11.4, L.bootD);
+    limb(c, 2.6, 12.6 + drop, 10.8, 13.2, 5.1, L.pants); bootUp(c, 12.4, 12.2, L.boot);
+    c.translate(0, 6.2 + drop); c.rotate(-0.14 + wob * 0.4);
+    if (id === 'cadet') scarf(c, 2.4, 5.0, 0); else if (id === 'sparky' || id === 'explorer') { put(c, sprGear(bank, B, L)); if (id === 'explorer') braid(c, L, 0); }
+    limb(c, -7.2, -2.0, -10.4, 5.0, AW, L.sleeveD); hand(c, -10.4, 5.0, L);
+    put(c, sprCoat(bank, B, L));
+    const hx = HX - 1.4, hy = HY + 0.8;
+    for (let i = 0; i < 3; i++) { const a = rt * 3.4 + i * TAU / 3; if (Math.sin(a) < 0) { star5(c, hx - 1 + Math.cos(a) * 11.5, hy - 17 + Math.sin(a) * 3.2, 2.9, a); fs(c, BRASS, 1.0); } }
+    c.save(); c.translate(hx, hy); c.rotate(-0.2 + wob); put(c, sprHead(bank, B, L, 6)); c.restore();
+    if (id === 'admiral') epaulette(c);
+    limb(c, 7.4, -1.8, 10.2, 5.2, AW, L.sleeve); hand(c, 10.2, 5.2, L);
+    for (let i = 0; i < 3; i++) { const a = rt * 3.4 + i * TAU / 3; if (Math.sin(a) >= 0) { star5(c, hx - 1 + Math.cos(a) * 11.5, hy - 17 + Math.sin(a) * 3.2, 3.6, a); fs(c, BRASS_L, 1.0); } }
+  }
+
   /* ---------------- the hero ---------------- */
   const SEEN = new WeakMap();           /* live player -> {hp, ouch}: lets us tell a real hit from mere invulnerability */
   function draw(c, p, t, g) {
-    const L = look(p.char), W = ITEMS[L.weapon], moving = !!p.moving, id = L.id;
+    const L = look(p.char), W = ITEMS[L.weapon], down = !!p.down, won = !down && !!p.won, moving = !!p.moving && !down && !won, id = L.id;
+    const run = !!(g && g.state && g.state !== 'menu'), rt = down || won ? performance.now() / 1000 : 0;
     const gt = g && typeof g.t === 'number' ? g.t : t, flip = p.faceX < 0, sc = (p.r || 13) / 13;
     const m = c.getTransform(), B = bucketFor(Math.hypot(m.a, m.b) * sc), bank = L.bank[B] || (L.bank[B] = { head: [], coat: null, item: null, gear: null });
     const ph = t * 10.6, sw = moving ? Math.sin(ph) : 0, cw = moving ? Math.cos(ph) : 0, br = Math.sin(t * 2.5 + L.seed);
-    const dip = moving ? Math.abs(sw) * 1.25 : 0.45 + br * 0.45;             /* never rises above the rest pose */
+    const dip = moving ? Math.abs(sw) * 1.25 : won ? 0 : 0.45 + br * 0.45;   /* never rises above the rest pose */
     const hb = moving ? 0.3 + cw * 0.3 : 0.3 + Math.sin(t * 2.5 + L.seed - 0.7) * 0.3;
     const inv = p.iframes > 0, low = p.maxHp > 0 && p.hp < p.maxHp * 0.3;
-    let hurt = false;
-    if (g && g.state && g.state !== 'menu') { let st = SEEN.get(p); if (!st) { st = { hp: p.hp, ouch: -9 }; SEEN.set(p, st); } if (p.hp < st.hp - 0.01) st.ouch = gt + 0.4; st.hp = p.hp; hurt = gt < st.ouch && gt > st.ouch - 0.5; }
+    let hurt = false, st = null;
+    if (run) { st = SEEN.get(p); if (!st) { st = { hp: p.hp, ouch: -9, downT: -1 }; SEEN.set(p, st); } if (p.hp < st.hp - 0.01) st.ouch = gt + 0.4; st.hp = p.hp; hurt = gt < st.ouch && gt > st.ouch - 0.5; if (down && st.downT < 0) st.downT = rt; }
     else hurt = inv;
     let k = 0, aim = 0;
-    if (W.aims && p.aim != null && p.aimT !== undefined) { const d = gt - p.aimT; if (d >= 0 && d < 0.25) { k = 1 - d / 0.25; aim = flip ? PI - p.aim : p.aim; aim = Math.atan2(Math.sin(aim), Math.cos(aim)); if (aim > 2.0) aim = 2.0; else if (aim < -2.0) aim = -2.0; } }
+    if (W.aims && !down && !won && p.aim != null && p.aimT !== undefined) { const d = gt - p.aimT; if (d >= 0 && d < 0.25) { k = 1 - d / 0.25; aim = flip ? PI - p.aim : p.aim; aim = Math.atan2(Math.sin(aim), Math.cos(aim)); if (aim > 2.0) aim = 2.0; else if (aim < -2.0) aim = -2.0; } }
     const e = k * k * (3 - 2 * k);
     c.save(); c.translate(p.x, p.y); c.scale(flip ? -sc : sc, sc);
-    if (inv && (t * 18 % 2) < 1) c.globalAlpha *= hurt ? 0.45 : 0.62;
     c.lineJoin = 'round'; c.lineCap = 'round';
-
-    if (g && g.state && g.state !== 'menu') { const pa = c.globalAlpha; c.globalAlpha = pa * 0.5; c.strokeStyle = L.coatL; c.lineWidth = 1.3; c.beginPath(); c.ellipse(0, 15.0, 17.5, 6.4, 0, 0, TAU); c.stroke(); c.globalAlpha = pa; }
+    if (run) {                                                                 /* "this is you": a steady light ring with a dark edge, gently breathing */
+      const rs = 1 + Math.sin(t * 2.6) * 0.04, pa = c.globalAlpha;
+      c.beginPath(); c.ellipse(0, 15.0, 21 * rs, 7.8 * rs, 0, 0, TAU);
+      c.globalAlpha = pa * 0.13; c.fillStyle = L.ring; c.fill();
+      c.globalAlpha = pa * 0.7; c.strokeStyle = OUT; c.lineWidth = 4.4; c.stroke();
+      c.globalAlpha = pa; c.strokeStyle = L.ring; c.lineWidth = 2.2; c.stroke();
+    }
+    if (down) { poseDown(c, L, W, bank, B, rt, st ? rt - st.downT : 9); c.restore(); return; }
+    if (inv && !won && (t * 18 % 2) < 1) c.globalAlpha *= hurt ? 0.45 : 0.62;
+    let air = 0;
+    if (won) { let jp = rt * 2.3 + L.seed; jp -= Math.floor(jp); air = 4 * jp * (1 - jp); const sq = 1 + (air - 0.45) * 0.08; c.translate(0, 15.7 - air * 6.5); c.scale(2 - sq, sq); c.translate(0, -15.7); }
 
     /* legs: far then near */
     for (let i = 0; i < 2; i++) {
-      const s = i ? 1 : -1, hx = i ? 3.4 : -3.2, fx = hx + sw * s * 4.5, fy = 12.2 - Math.max(0, cw * s) * 3.3;
+      const s = i ? 1 : -1, hx = i ? 3.4 : -3.2, fx = hx + (won ? s * air * 1.8 : sw * s * 4.5), fy = 12.2 - (won ? air * 1.4 : Math.max(0, cw * s) * 3.3);
       limb(c, hx, 5.6, fx, fy, 5.1, i ? L.pants : L.pantsD);
       boot(c, fx, fy, i ? L.boot : L.bootD);
     }
@@ -412,62 +469,54 @@
 
     /* worn on the back */
     if (id === 'cadet') {                                                     /* scarf tails streaming behind */
-      const a = moving ? 1.7 : 0.7, w1 = Math.sin(t * 5.4) * a, w2 = Math.sin(t * 5.4 - 1.2) * a * 1.5, lift = moving ? -3.0 : 0;
-      c.beginPath(); c.moveTo(-5.8, -3.4); c.quadraticCurveTo(-11.4, -3.6 + w1 + lift * 0.4, -15.2, 1.6 + w2 + lift * 1.3);
-      c.moveTo(-5.8, -4.0); c.quadraticCurveTo(-11.8, -6.2 + w1 + lift * 0.5, -17.0, -2.6 + w2 + lift * 1.5);
-      c.strokeStyle = OUT; c.lineWidth = 5.4; c.stroke(); c.strokeStyle = '#ef5038'; c.lineWidth = 3.5; c.stroke();
-      c.strokeStyle = 'rgba(10,17,24,.35)'; c.lineWidth = 0.9; c.beginPath(); c.moveTo(-8.2, -3.9); c.quadraticCurveTo(-11.6, -4.9 + w1 + lift * 0.45, -14.6, -1.2 + w2 + lift * 1.4); c.stroke();
+      const a = moving || won ? 1.7 : 0.7, ts = won ? rt * 2 : t; scarf(c, Math.sin(ts * 5.4) * a, Math.sin(ts * 5.4 - 1.2) * a * 1.5, moving ? -3.0 : won ? 1.5 - air * 4 : 0);
     } else if (id === 'sparky') {
       if (moving) { const fl = 2.4 + Math.sin(t * 40) * 0.9; glow(c, -11.8, 10.4, 6, '#7fd8ff', 0.7); c.beginPath(); c.moveTo(-13.6, 8.4); c.quadraticCurveTo(-11.8, 9.4 + fl * 2.2, -10.0, 8.4); c.closePath(); fs(c, '#d9f6ff', 0.9); }
-      put(c, bank.gear || (bank.gear = mk(B, -17.4, -14.4, -6.4, 9.8, bakeGear, L)));
+      put(c, sprGear(bank, B, L));
       const bl = (t * 2 + L.seed) % 1 < 0.5; dot(c, -15.0, -12.8, 1.25); fs(c, bl ? '#7ff3ff' : '#2a6f78', 0.9);
       glow(c, -11.9, -2.8, 5.5, '#7ff3ff', 0.42 + Math.sin(t * 4) * 0.15);
       c.strokeStyle = OUT; c.lineWidth = 0.9; c.beginPath(); c.moveTo(-11.9, -2.8); c.lineTo(-11.9 + Math.cos(t * 3) * 1.5, -2.8 + Math.sin(t * 3) * 1.5); c.stroke();
     } else if (id === 'explorer') {                                           /* satchel + braid */
       const sway = moving ? sw : Math.sin(t * 2.2) * 0.3;
-      c.translate(sway * 0.4, 0); put(c, bank.gear || (bank.gear = mk(B, -18.2, -1, -6.4, 10, bakeGear, L))); c.translate(-sway * 0.4, 0);
-      for (let i = 0; i < 3; i++) { ell(c, -10.2 - i * 0.7 - sway * (i + 1) * 0.55, -5.8 + i * 3.7, 2.5 - i * 0.3, 2.3, 0.25); fs(c, L.hair, 1.25); }
-      rr(c, -13.0 - sway * 1.7, 3.7, 2.8, 1.7, 0.7); fs(c, L.coat, 0.9);
+      c.translate(sway * 0.4, 0); put(c, sprGear(bank, B, L)); c.translate(-sway * 0.4, 0); braid(c, L, sway);
     }
 
     /* far arm (it carries the sparkler for the trail weapon) */
-    const bsx = -7.2, bsy = -2.0, ba = (W.back ? W.arm : 1.75) - sw * (W.back ? W.swing : 0.55) + (moving ? 0 : br * 0.03);
+    const cheer = won ? Math.sin(rt * 10) * 0.2 : 0;
+    const bsx = -7.2, bsy = -2.0, ba = won ? -2.36 + cheer : (W.back ? W.arm : 1.75) - sw * (W.back ? W.swing : 0.55) + (moving ? 0 : br * 0.03);
     const bhx = bsx + Math.cos(ba) * 7.8, bhy = bsy + Math.sin(ba) * 7.8;
-    const item = bank.item || (bank.item = mk(B, W.box[0], W.box[1], W.box[2], W.box[3], W.bake, L));
-    if (W.back) { c.save(); c.translate(bhx, bhy); c.rotate(W.item - sw * 0.12); put(c, item); if (W.live) W.live(c, L, t, 0); c.restore(); }
+    const item = sprItem(bank, B, W, L);
+    if (W.back) { c.save(); c.translate(bhx, bhy); c.rotate(won ? -1.95 + cheer : W.item - sw * 0.12); put(c, item); if (W.live) W.live(c, L, t, 0); c.restore(); }
     limb(c, bsx, bsy, bhx, bhy, AW, L.sleeveD); hand(c, bhx, bhy, L);
 
-    put(c, bank.coat || (bank.coat = mk(B, -12.6, -11.4, 12.6, 11.4, bakeCoat, L)));
+    put(c, sprCoat(bank, B, L));
 
     /* the deck gun rides across the shoulders, behind the head */
     let ga = 0;
     if (W.gun) { ga = k > 0 ? lerpA(W.item, aim, e) : W.item + (moving ? sw * 0.035 : br * 0.012); c.save(); c.translate(0.6 - k * k * 2.8 * Math.cos(ga), -5.4 - k * k * 2.8 * Math.sin(ga)); c.rotate(ga); put(c, item); c.restore(); }
 
     /* head */
-    const hv = hurt ? 5 : low ? 4 : ((t + L.seed * 1.7) % 3.6 < 0.13 ? 2 : 0) + (moving ? 1 : 0);
+    const hv = won ? 7 : hurt ? 5 : low ? 4 : ((t + L.seed * 1.7) % 3.6 < 0.13 ? 2 : 0) + (moving ? 1 : 0);
     c.translate(HX, HY + hb);
-    put(c, bank.head[hv] || (bank.head[hv] = mk(B, -17.2, -20.2, 17.2, 14.6, bakeHead, L, hv)));
-    if (low && !hurt) { const u = (t * 1.5 + L.seed) % 1, sx0 = -8.6, sy0 = -5 + u * 5.5, pa = c.globalAlpha; c.globalAlpha = pa * (1 - u * u); c.beginPath(); c.moveTo(sx0, sy0 - 2.5); c.quadraticCurveTo(sx0 + 2.3, sy0 + 0.6, sx0, sy0 + 1.6); c.quadraticCurveTo(sx0 - 2.3, sy0 + 0.6, sx0, sy0 - 2.5); c.closePath(); fs(c, '#a9e2ff', 0.9); c.globalAlpha = pa; }
+    put(c, sprHead(bank, B, L, hv));
+    if (low && !hurt && !won) { const u = (t * 1.5 + L.seed) % 1, sx0 = -8.6, sy0 = -5 + u * 5.5, pa = c.globalAlpha; c.globalAlpha = pa * (1 - u * u); c.beginPath(); c.moveTo(sx0, sy0 - 2.5); c.quadraticCurveTo(sx0 + 2.3, sy0 + 0.6, sx0, sy0 + 1.6); c.quadraticCurveTo(sx0 - 2.3, sy0 + 0.6, sx0, sy0 - 2.5); c.closePath(); fs(c, '#a9e2ff', 0.9); c.globalAlpha = pa; }
     if (id === 'diplomat') { const gp = (t * 0.3 + L.seed) % 1; if (gp < 0.1 && !hurt) { const pa = c.globalAlpha; c.globalAlpha = pa * Math.sin(gp * 10 * PI) * 0.95; c.strokeStyle = '#ffffff'; c.lineWidth = 1.0; c.beginPath(); c.moveTo(EX1 - 2.6, EY + 0.8); c.lineTo(EX1 - 0.2, EY - 2.6); c.moveTo(EX1 - 1.0, EY + 2.2); c.lineTo(EX1 + 2.2, EY - 2.0); c.stroke(); c.globalAlpha = pa; } }
     c.translate(-HX, -HY - hb);
-    if (id === 'admiral') {                                                   /* epaulettes */
-      rr(c, 7.0, -7.9, 6.4, 3.1, 1.4); fs(c, BRASS, 1.3);
-      c.strokeStyle = BRASS_D; c.lineWidth = 0.9; c.beginPath(); c.moveTo(9.0, -4.6); c.lineTo(9.0, -3.0); c.moveTo(10.7, -4.6); c.lineTo(10.7, -3.0); c.moveTo(12.4, -4.6); c.lineTo(12.4, -3.0); c.stroke();
-    }
+    if (id === 'admiral') epaulette(c);
 
     /* near arm + whatever they carry */
     const sx = 7.4, sy = -1.8;
-    if (W.gun) {
+    if (W.gun && !won) {
       const hx = 0.6 + Math.cos(ga) * 12.8 - Math.sin(ga) * 3.5, hy = -5.4 + Math.sin(ga) * 12.8 + Math.cos(ga) * 3.5;
       limb(c, sx, sy - 0.6, hx, hy, AW, L.sleeve); hand(c, hx, hy, L);
-    } else if (W.back) {
-      const fa = 1.25 + sw * 0.5 + (moving ? 0 : br * 0.03), hx = sx + Math.cos(fa) * 7.8, hy = sy + Math.sin(fa) * 7.8;
+    } else if (W.back || W.gun) {
+      const fa = won ? -0.78 - cheer : 1.25 + sw * 0.5 + (moving ? 0 : br * 0.03), hx = sx + Math.cos(fa) * 7.8, hy = sy + Math.sin(fa) * 7.8;
       limb(c, sx, sy, hx, hy, AW, L.sleeve);
       if (id === 'firebrand') { c.lineCap = 'butt'; c.beginPath(); c.moveTo(sx + (hx - sx) * 0.34, sy + (hy - sy) * 0.34); c.lineTo(sx + (hx - sx) * 0.62, sy + (hy - sy) * 0.62); c.strokeStyle = '#fff6e0'; c.lineWidth = AW; c.stroke(); c.lineCap = 'round'; }
       hand(c, hx, hy, L);
     } else {
       let aa = W.arm + (moving ? sw * W.swing : br * 0.03), ia = W.item + (W.wave ? Math.sin(t * W.wave) * 0.13 : 0) + (moving ? sw * 0.1 : 0);
-      if (k > 0) { aa = lerpA(aa, aim, e); ia = lerpA(ia, aim, e); }
+      if (won) { aa = -0.78 - cheer; ia = -1.3 - cheer * 1.2; } else if (k > 0) { aa = lerpA(aa, aim, e); ia = lerpA(ia, aim, e); }
       let hx = sx + Math.cos(aa) * 8.0, hy = sy + Math.sin(aa) * 8.0;
       if (k > 0) { hx -= Math.cos(aim) * 2.3 * k * k; hy -= Math.sin(aim) * 2.3 * k * k; }
       limb(c, sx, sy, hx, hy, AW, L.sleeve);

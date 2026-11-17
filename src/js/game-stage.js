@@ -173,9 +173,10 @@
 
     /* 10. screen space: off-screen arrows, joystick, vignette, flashes */
     c.setTransform(g.dpr, 0, 0, g.dpr, 0, 0); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
+    const inset = PK.UI && PK.UI.topInset ? PK.UI.topInset(false) : 100;
     const arrow = (x, y, col) => {
-      if (vis(x, y, -20)) return; const a = Math.atan2(y - cy, x - cx), mg = 34, ex = g.W / 2 - mg, ey = g.H / 2 - mg - 30;
-      const tt = Math.min(Math.abs(ex / (Math.cos(a) || 1e-6)), Math.abs(ey / (Math.sin(a) || 1e-6))), ax = g.W / 2 + Math.cos(a) * tt, ay = g.H / 2 + 20 + Math.sin(a) * tt;
+      if (vis(x, y, -20)) return; const mg = 28, sx = (x - cx) * sc + g.W / 2, sy = (y - cy) * sc + g.H / 2;
+      const ax = Math.max(mg, Math.min(g.W - mg, sx)), ay = Math.max(inset + mg, Math.min(g.H - mg, sy)), a = Math.atan2(sy - ay, sx - ax);
       c.save(); c.translate(ax, ay); c.rotate(a); c.fillStyle = col; c.strokeStyle = OUT; c.lineWidth = 2; c.lineJoin = 'round'; c.beginPath(); c.moveTo(14, 0); c.lineTo(-8, -10); c.lineTo(-3, 0); c.lineTo(-8, 10); c.closePath(); c.fill(); c.stroke(); c.restore();
     };
     for (const q of g.pickups) if (q.kind === 'chest') arrow(q.x, q.y, COL.brass);
@@ -183,8 +184,11 @@
     if (g.joy.on) { c.globalAlpha = 0.35; c.strokeStyle = '#fff'; c.lineWidth = 3; c.beginPath(); c.arc(g.joy.ox, g.joy.oy, 50, 0, TAU); c.stroke(); const dx = g.joy.x - g.joy.ox, dy = g.joy.y - g.joy.oy, d = Math.hypot(dx, dy) || 1, mm = Math.min(50, d); dot(c, g.joy.ox + dx / d * mm, g.joy.oy + dy / d * mm, 22, '#fff'); c.globalAlpha = 1; }
     vignette(c, g, 0.5);
     if (g.flash > 0) { c.globalAlpha = Math.min(0.5, g.flash); c.fillStyle = g.flashCol; c.fillRect(0, 0, g.W, g.H); c.globalAlpha = 1; }
-    if (p.hp < p.maxHp * 0.3 && g.state === 'play') { const gr = c.createRadialGradient(g.W / 2, g.H / 2, Math.min(g.W, g.H) * 0.35, g.W / 2, g.H / 2, Math.max(g.W, g.H) * 0.75); gr.addColorStop(0, 'rgba(255,40,30,0)'); gr.addColorStop(1, 'rgba(255,40,30,' + (0.28 + Math.sin(t * 6) * 0.1) + ')'); c.fillStyle = gr; c.fillRect(0, 0, g.W, g.H); }
+    if (p.hp < p.maxHp * 0.3 && g.state === 'play') { c.fillStyle = lowHp(c, g); c.fillRect(0, 0, g.W, g.H); }
   };
+  /* low health: a steady, faint red edge (the HUD heart does the pulsing) */
+  let lowG = null, lowKey = '';
+  function lowHp(c, g) { const key = g.W + 'x' + g.H; if (lowKey !== key) { lowG = c.createRadialGradient(g.W / 2, g.H / 2, Math.min(g.W, g.H) * 0.38, g.W / 2, g.H / 2, Math.max(g.W, g.H) * 0.75); lowG.addColorStop(0, 'rgba(255,40,30,0)'); lowG.addColorStop(1, 'rgba(255,40,30,.2)'); lowKey = key; } return lowG; }
   let vig = null, vigKey = '';
   function vignette(c, g, a) {
     const key = g.W + 'x' + g.H + a;

@@ -1,6 +1,6 @@
 /* art-creatures.js — the ten monsters. Registers PK.art.enemy = { draw, corpse, links }.
-   Every monster is painted ONCE into an offscreen canvas (3 device px per world unit, plus a white silhouette for the
-   hit flash) and from then on only blitted: hop, squash-and-stretch, sway, flip, pop-in and state poses are canvas
+   Every monster is painted ONCE into an offscreen canvas (3 device px per world unit, plus a white-tinted copy for the
+   hit flash and a faintly cool copy for "slowed") and from then on only blitted: hop, squash-and-stretch, sway, flip, pop-in and state poses are canvas
    transforms. The stage draws the ground shadow and the elite health bar. Reads only the documented monster fields. */
 (function () {
   'use strict';
@@ -319,7 +319,7 @@
   function paint(r, ext, res, fn) {
     const half = r * ext, px = Math.ceil(half * 2 * res), cv = canvas(px), c = cv.getContext('2d');
     c.scale(res, res); c.translate(half, half); c.lineJoin = 'round'; c.lineCap = 'round'; fn(c);
-    return { img: cv, white: null, half };
+    return { img: cv, flash: null, cool: null, half };
   }
   const SETS = {};
   function setOf(type) {
@@ -336,7 +336,7 @@
     const elite = name.charCodeAt(0) === 101, o = { blink: name === 'b', rage: S.alt === 'rage' && (name === 'a' || name === 'ea'), loot: S.alt === 'loot' && (name === 'a' || name === 'ea'), cloth: name === 'f' || name === 'ef', crown: elite };
     const bare = S.halo ? Object.assign({ bare: true }, o) : null;
     let V;
-    if (!elite) { V = paint(S.r, S.ext, S.res, (c) => S.fn(c, S.r, o)); V.white = tint(bare ? paint(S.r, S.ext, S.res, (c) => S.fn(c, S.r, bare)).img : V.img, '#ffffff'); }
+    if (!elite) { V = paint(S.r, S.ext, S.res, (c) => S.fn(c, S.r, o)); V.flash = flashOf(V.img); }
     else {
       /* elite: a little sharper (it is drawn 1.55x bigger), crowned, with a brass rim and a faint brass halo that follow the
          silhouette. The rim is grown at half resolution (it sits under the crisp body), which keeps this cheap to build. */
@@ -345,7 +345,7 @@
       q.globalAlpha = 0.1; for (let i = 0; i < 8; i++) { const a = (i / 8) * TAU; q.drawImage(rim, Math.cos(a) * d * 2.5, Math.sin(a) * d * 2.5, W / 2, W / 2); }
       q.globalAlpha = 1; for (let i = 0; i < 12; i++) { const a = (i / 12) * TAU; q.drawImage(rim, Math.cos(a) * d, Math.sin(a) * d, W / 2, W / 2); }
       const out = canvas(W), x = out.getContext('2d'); x.drawImage(small, 0, 0, hw * 2, hw * 2); x.drawImage(B.img, 0, 0);
-      V = { img: out, white: tint(sil, '#ffffff'), half: B.half };
+      V = { img: out, flash: flashOf(out), cool: null, half: B.half };
     }
     return (S.v[name] = V);
   }
@@ -354,9 +354,30 @@
     const R = S.r * BODY, w = R * 1.35, h = R * 1.2, res = S.res, cv = document.createElement('canvas');
     cv.width = Math.ceil(w * res); cv.height = Math.ceil(h * res);
     const c = cv.getContext('2d'); c.scale(res, res); c.translate(w - R * 0.1, R * 0.12); c.lineJoin = 'round'; c.lineCap = 'round'; cloth(c, R, LW(S.r));
-    return (S.cloth = { img: cv, white: tintRect(cv), w, h, ox: w - R * 0.1, oy: R * 0.12, ax: -R * 0.99, ay: -R * 1.78 });
+    return (S.cloth = { img: cv, flash: flashOf(cv), cool: null, w, h, ox: w - R * 0.1, oy: R * 0.12, ax: -R * 0.99, ay: -R * 1.78 });
   }
-  function tintRect(src) { const w = document.createElement('canvas'); w.width = src.width; w.height = src.height; const x = w.getContext('2d'); x.drawImage(src, 0, 0); x.globalCompositeOperation = 'source-in'; x.fillStyle = '#ffffff'; x.fillRect(0, 0, w.width, w.height); return w; }
+  /* Hit flash: the same painting with its colours pushed most of the way to white, while the dark outline, pupils and
+     mouth stay dark, so a monster that is hit still has its face (never a flat white cut-out). Built once per sprite. */
+  const FLASH = 0.6;
+  function flashOf(src) {
+    const w = src.width, h = src.height, tmp = document.createElement('canvas'); tmp.width = w; tmp.height = h;
+    const x = tmp.getContext('2d', { willReadFrequently: true }); x.drawImage(src, 0, 0);
+    let im = null; try { im = x.getImageData(0, 0, w, h); } catch (err) { im = null; }
+    if (!im) return wash(src, '#ffffff', 0.42);
+    const d = im.data;
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i + 3] === 0) continue;
+      const r = d[i], g = d[i + 1], b = d[i + 2]; let k = ((r * 0.3 + g * 0.59 + b * 0.11) / 255 - 0.1) / 0.2;
+      if (k <= 0) continue; k = (k >= 1 ? 1 : k * k * (3 - 2 * k)) * FLASH;
+      d[i] = r + (255 - r) * k; d[i + 1] = g + (255 - g) * k; d[i + 2] = b + (255 - b) * k;
+    }
+    x.putImageData(im, 0, 0);
+    const out = document.createElement('canvas'); out.width = w; out.height = h; out.getContext('2d').drawImage(tmp, 0, 0); return out;
+  }
+  /* a flat colour wash over the painted pixels only */
+  function wash(src, col, a) { const o = document.createElement('canvas'); o.width = src.width; o.height = src.height; const x = o.getContext('2d'); x.drawImage(src, 0, 0); x.globalCompositeOperation = 'source-atop'; x.globalAlpha = a; x.fillStyle = col; x.fillRect(0, 0, o.width, o.height); return o; }
+  /* Slowed: nothing but a very subtle cool tint (the Neutral Zone slows dozens of monsters at once). */
+  function coolOf(V) { return V.cool || (V.cool = wash(V.img, '#7fc4ff', 0.15)); }
 
   /* ---------- small shared sprites ---------- */
   const SH = {};
@@ -367,27 +388,17 @@
     rrect(c, -1.9, -6.2, 3.8, 7.4, 1.6); fill(c, '#ffffff'); circ(c, 0, 4.4, 2.1); fill(c, '#ffffff');
     return (SH.bang = cv);
   }
-  function frost() {                             /* slowed: a cold glow and a few ice flakes (no hard ring) */
-    if (SH.frost) return SH.frost; const cv = canvas(96), c = cv.getContext('2d'); c.translate(48, 48); c.lineCap = 'round';
-    const g = c.createRadialGradient(0, 0, 6, 0, 0, 46); g.addColorStop(0, 'rgba(150,215,255,.34)'); g.addColorStop(0.7, 'rgba(150,215,255,.2)'); g.addColorStop(1, 'rgba(150,215,255,0)');
-    circ(c, 0, 0, 46); fill(c, g);
-    for (const p of [[-28, -25, 7], [30, -16, 6], [-31, 20, 6], [24, 27, 7]]) for (let pass = 0; pass < 2; pass++) {
-      c.strokeStyle = pass ? '#f2fbff' : 'rgba(10,17,24,.55)'; c.lineWidth = pass ? 2.6 : 5;
-      for (let i = 0; i < 3; i++) { const a = (i * PI) / 3 + 0.3; c.beginPath(); c.moveTo(p[0] - Math.cos(a) * p[2], p[1] - Math.sin(a) * p[2]); c.lineTo(p[0] + Math.cos(a) * p[2], p[1] + Math.sin(a) * p[2]); c.stroke(); }
-    }
-    return (SH.frost = cv);
-  }
   function streak() {                            /* speed lines behind a charging zealot: painted trailing to the LEFT of x = 96 */
     if (SH.streak) return SH.streak; const cv = canvas(96), c = cv.getContext('2d'); c.lineCap = 'round';
     const g = c.createLinearGradient(0, 0, 96, 0); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(1, 'rgba(255,238,220,.92)');
     c.strokeStyle = g; for (const q of [[20, 22, 8], [2, 48, 11], [28, 74, 8]]) { c.lineWidth = q[2]; c.beginPath(); c.moveTo(q[0] + 6, q[1]); c.lineTo(88, q[1]); c.stroke(); }
     return (SH.streak = cv);
   }
-  function pow(key) {                            /* comic "pop!" burst in the monster's cause colour with a white heart */
+  function pow(key) {                            /* small comic pop in the monster's cause colour (no white) */
     const id = 'pow' + key; if (SH[id]) return SH[id]; const cv = canvas(132), c = cv.getContext('2d'), col = light(keyCol(key), 0.12); c.translate(66, 66); c.lineJoin = 'round';
     const burst = (R0, R1, n) => { c.beginPath(); for (let i = 0; i < n * 2; i++) { const a = (i / (n * 2)) * TAU - PI / 2, rad = i % 2 ? R1 : R0; c[i ? 'lineTo' : 'moveTo'](Math.cos(a) * rad, Math.sin(a) * rad); } c.closePath(); };
-    burst(58, 36, 9); fill(c, col); line(c, 5);
-    burst(33, 18, 9); fill(c, light(col, 0.7));
+    burst(58, 37, 8); fill(c, col); line(c, 5);
+    burst(31, 18, 8); fill(c, light(col, 0.4));
     return (SH[id] = cv);
   }
   function bit(key) {                            /* little cause-coloured bead that flies out of the pop */
@@ -417,7 +428,7 @@
       const ca = Math.cos(a), sa = Math.sin(a);
       c.save(); c.globalAlpha = 0.8; c.transform(ca, sa, -sa, ca, e.x, e.y); c.drawImage(streak(), -S.r * 0.5 * k - L, -W * 0.5, L, W); c.restore();
       const ct = Math.cos(tilt), sn = Math.sin(tilt), ax = dir * 1.26 * k * pop, ay = 0.82 * k * pop;
-      c.save(); c.transform(ct * ax, sn * ax, -sn * ay, ct * ay, e.x, e.y); c.drawImage(flash ? V.white : V.img, -V.half, -V.half, V.half * 2, V.half * 2); c.restore();
+      c.save(); c.transform(ct * ax, sn * ax, -sn * ay, ct * ay, e.x, e.y); c.drawImage(flash ? V.flash : e.slowed ? coolOf(V) : V.img, -V.half, -V.half, V.half * 2, V.half * 2); c.restore();
       return;
     }
     /* which painting */
@@ -440,9 +451,9 @@
     if (wave) {                                  /* the banner waves on its own behind the body */
       const C = clothOf(S), w = 1 + 0.14 * Math.sin(t * 9 + sd * 2);
       c.save(); c.translate(C.ax, C.ay - S.foot); c.rotate(0.1 * Math.sin(t * 6.2 + sd)); c.scale(w, 2 - w);
-      c.drawImage(flash ? C.white : C.img, -C.ox, -C.oy, C.w, C.h); c.restore();
+      c.drawImage(flash ? C.flash : e.slowed ? coolOf(C) : C.img, -C.ox, -C.oy, C.w, C.h); c.restore();
     }
-    c.drawImage(flash ? V.white : V.img, -V.half, -V.half - S.foot, V.half * 2, V.half * 2);
+    c.drawImage(flash ? V.flash : e.slowed ? coolOf(V) : V.img, -V.half, -V.half - S.foot, V.half * 2, V.half * 2);
     c.restore();
     if (rage) {                                  /* a bold "!" pops for a moment when the squad is called in */
       let t0 = CALLED.get(e); if (t0 === undefined) { t0 = t; CALLED.set(e, t0); }
@@ -456,27 +467,27 @@
     if (elite) {                                 /* a slow twinkle off the crown */
       const w = Math.sin(t * 2.4 + sd * 2); if (w > 0.25) { const ts = r * 0.95 * (w - 0.25) * 1.33; c.drawImage(star('E'), e.x + face * r * 0.62 - ts * 0.5, e.y - r * 1.95 - lift - ts * 0.5, ts, ts); }
     }
-    if (e.slowed) { const fs = r * 3.1, dy = ((t * 0.6 + sd) % 1) * r * 0.3; c.drawImage(frost(), e.x - fs * 0.5, e.y - fs * 0.5 - lift * 0.5 + dy, fs, fs); }
   }
 
-  /* ================= death pop (0.34 s): white squash, comic burst, beads fly out ================= */
+  /* ================= death pop (0.3 s, small): the monster squashes flat and shrinks away in its own colours with one
+     blink of light, a small cause-coloured pop, three beads. Never a white silhouette. ================= */
   function corpse(c, d, t, g) {
-    const life = d.life || 0.34, f = Math.max(0, Math.min(1, (d.t || 0) / life)), S = setOf(d.type), r = d.r || S.r, face = d.face < 0 ? -1 : 1, sd = d.seed || 0, key = d.key || S.key, big = d.elite ? 1.3 : 1;
-    if (f < 0.5) {
+    const T = Math.min(d.life || 0.34, 0.3), f = (d.t || 0) / T; if (!(f >= 0 && f < 1)) return;
+    const S = setOf(d.type), r = d.r || S.r, face = d.face < 0 ? -1 : 1, sd = d.seed || 0, key = d.key || S.key, big = d.elite ? 1.25 : 1;
+    if (f < 0.6) {
       const nm = d.elite ? 'e' : 'n', V = S.v[nm] || make(S, nm), k = r / S.r; let sx, sy, al = 1;
-      if (f < 0.2) { const q = f / 0.2; sx = 1 + 0.5 * q; sy = 1 - 0.48 * q; } else { const q = (f - 0.2) / 0.3, m = 1 - q; sx = 1.5 * m + 0.2 * q; sy = 0.52 * m * m + 0.05; al = m; }
+      if (f < 0.2) { const q = f / 0.2; sx = 1 + 0.42 * q; sy = 1 - 0.46 * q; } else { const q = (f - 0.2) / 0.4, m = 1 - q; sx = 1.42 * m + 0.12 * q; sy = 0.54 * m * m + 0.04; al = m; }
       c.save(); c.globalAlpha = al; c.transform(face * sx * k, 0, 0, sy * k, d.x, d.y + r * BODY);
-      c.drawImage(f < 0.06 ? V.img : V.white, -V.half, -V.half - S.foot, V.half * 2, V.half * 2); c.restore();
+      c.drawImage(f < 0.16 ? V.flash : V.img, -V.half, -V.half - S.foot, V.half * 2, V.half * 2); c.restore();
     }
-    if (f > 0.12 && f < 0.86) {
-      const q = (f - 0.12) / 0.74, E = 1 - (1 - q) * (1 - q) * (1 - q), s = r * (1.3 + 1.25 * E) * big;
-      c.globalAlpha = q < 0.35 ? 1 : 1 - (q - 0.35) / 0.65; c.drawImage(pow(key), d.x - s * 0.5, d.y - r * 0.1 - s * 0.5, s, s);
+    if (f > 0.12) {
+      const q = (f - 0.12) / 0.88, E = 1 - (1 - q) * (1 - q), s = r * (1.0 + 0.9 * E) * big;
+      c.globalAlpha = q < 0.3 ? 0.92 : 0.92 * (1 - (q - 0.3) / 0.7); c.drawImage(pow(key), d.x - s * 0.5, d.y - r * 0.1 - s * 0.5, s, s);
     }
-    const E = 1 - (1 - f) * (1 - f), B = bit(key), n = d.elite ? 7 : 4, bs = r * (0.46 * (1 - f * f) + 0.06) * big;
-    c.globalAlpha = Math.min(1, 3 * (1 - f));
-    for (let i = 0; i < n; i++) { const a = sd * 2.4 + (i * TAU) / n + 0.5, dist = r * (0.5 + (1.5 + 0.5 * ((i * 7) % 3)) * E) * big; c.drawImage(B, d.x + Math.cos(a) * dist - bs * 0.5, d.y + Math.sin(a) * dist * 0.8 - r * 0.2 + r * 0.9 * f * f - bs * 0.5, bs, bs); }
-    const ST = star(key);
-    for (let i = 0; i < (d.elite ? 3 : 1); i++) { const a = sd * 1.3 + i * 2.2 + 1.2, dist = r * (1.25 + 1.0 * E) * big, ss = r * 0.85 * Math.sin(PI * Math.min(1, f * 1.15)) * big; c.drawImage(ST, d.x + Math.cos(a) * dist - ss * 0.5, d.y + Math.sin(a) * dist * 0.8 - r * 0.4 - ss * 0.5, ss, ss); }
+    if (f < 0.18) { c.globalAlpha = 1; return; }
+    const E = 1 - (1 - f) * (1 - f), B = bit(key), n = d.elite ? 5 : 3, bs = r * (0.38 * (1 - f * f) + 0.05) * big;
+    c.globalAlpha = Math.min(1, 2.6 * (1 - f));
+    for (let i = 0; i < n; i++) { const a = sd * 2.4 + (i * TAU) / n + 0.5, dist = r * (0.45 + 1.1 * E) * big; c.drawImage(B, d.x + Math.cos(a) * dist - bs * 0.5, d.y + Math.sin(a) * dist * 0.8 - r * 0.2 + r * 0.7 * f * f - bs * 0.5, bs, bs); }
     c.globalAlpha = 1;
   }
 
@@ -515,7 +526,7 @@
     const todo = []; for (const type in EXT) todo.push([type, 'n'], [type, 'b']);
     todo.push(['link', 'a'], ['grabber', 'a'], ['zealot', 'f'], ['zealot', 'c'], ['brute', 'e'], ['link', 'e'], ['grabber', 'e'], ['zealot', 'e'], ['spark', 'e'], ['link', 'ea'], ['grabber', 'ea'], ['zealot', 'ef']);
     const step = () => {
-      const job = todo.shift(); if (!job) { try { bang(); frost(); streak(); for (const k of ['M', 'A', 'I', 'N', 'S']) { pow(k); bit(k); star(k); } star('E'); } catch (e) {} return; }
+      const job = todo.shift(); if (!job) { try { bang(); streak(); for (const k of ['M', 'A', 'I', 'N', 'S']) { pow(k); bit(k); } star('E'); } catch (e) {} return; }
       try { const S = setOf(job[0]); if (job[1] === 'c') clothOf(S); else if (!S.v[job[1]]) make(S, job[1]); } catch (e) {}
       later(step);
     };

@@ -10,7 +10,8 @@
   const open = new Set();            /* live modals: {veil, off()} */
   let root, modalRoot, handlers = {};
   let banT = 0, banT2 = 0, introT = 0, introT2 = 0, introRaf = 0, bossOutT = 0, snap = 0, xpSnap = false, lastBump = 0, bossHold = 0;
-  let lg = false, kbAt = -1e9, celebrate = false, cineT = 0;   /* roomy screens get a slightly larger HUD; kbAt = when a key was last used */
+  let lg = false, kbAt = -1e9, celebrate = false, cineT = 0;
+  let mW = -1, mH = -1, mStrip = 0, mBoss = 0, mFuse = 0, curAct = 0;   /* cached top-of-screen measurements */   /* roomy screens get a slightly larger HUD; kbAt = when a key was last used */
   const sfx = (n) => { try { window.AudioSys && AudioSys.sfx(n); } catch (e) {} };
   const still = () => { try { return !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { return false; } };
   const tween = (el, frames, o) => { if (!el || !el.animate || still()) return null; try { return el.animate(frames, o); } catch (e) { return null; } };
@@ -66,7 +67,7 @@
   /* ================= HUD ================= */
   function init(h) {
     handlers = h || {}; root = document.getElementById('hud'); modalRoot = document.getElementById('modals'); root.innerHTML = '';
-    lg = window.innerWidth >= 1000 && window.innerHeight >= 620; root.classList.toggle('hud-lg', lg);
+    lg = window.innerWidth >= 1000 && window.innerHeight >= 620; root.classList.toggle('hud-lg', lg); mW = -1;
     if (!init.keys) { init.keys = true; window.addEventListener('keydown', () => { kbAt = performance.now(); }, true); window.addEventListener('pointerdown', () => { kbAt = -1e9; }, true); }
     H.lvN = U.el('b', { class: 'num', text: '1' });
     H.ring = U.el('i', { class: 'hud-ring' });
@@ -87,14 +88,12 @@
       H.acts,
       U.el('div', { class: 'hud-meta' }, U.el('span', { class: 'hud-time' }, glyph('clock', lg ? 21 : 17), H.time), U.el('span', { class: 'hud-coins' }, H.coinI, H.coins)),
       H.pause);
-    H.bossI = U.el('span', { class: 'hud-boss-ico' }); H.bossN = U.el('span', { class: 'hud-boss-n display' });
+    H.bossI = U.el('span', { class: 'hud-boss-ico' });
     H.bossG = U.el('i', { class: 'ghost' }); H.bossF = U.el('i', { class: 'fill' });
     H.fuseF = U.el('i'); H.fuseS = U.el('b');
-    H.fuse = U.el('div', { class: 'hud-fuse', hidden: true, role: 'img', 'aria-label': 'Fuse' }, glyph('keg', 18, 'hud-keg'), U.el('div', { class: 'hud-fuse-line' }, H.fuseF, H.fuseS));
-    H.boss = U.el('div', { class: 'hud-boss', hidden: true },
-      U.el('div', { class: 'hud-boss-head' }, H.bossI, H.bossN),
-      U.el('div', { class: 'hud-boss-bar' }, H.bossG, H.bossF, U.el('i', { class: 'stripes' })),
-      H.fuse);
+    H.fuse = U.el('div', { class: 'hud-fuse', hidden: true, role: 'img', 'aria-label': 'Fuse' }, H.fuseF, H.fuseS);
+    H.bossBar = U.el('div', { class: 'hud-boss-bar', role: 'img', 'aria-label': 'Boss health' }, H.bossG, H.bossF, U.el('i', { class: 'stripes' }));
+    H.boss = U.el('div', { class: 'hud-boss', hidden: true }, H.bossI, U.el('div', { class: 'hud-boss-col' }, H.bossBar, H.fuse));
     H.card = U.el('div', { class: 'hud-card', hidden: true, role: 'status' });
     H.intro = U.el('div', { class: 'hud-intro', hidden: true });
     root.append(U.el('div', { class: 'hud-top' }, H.strip, H.boss, H.card), H.intro);
@@ -109,7 +108,7 @@
   }
   /* act tracker: M A I N spark — done / now / upcoming */
   function setAct(g) {
-    const kids = H.acts.children;
+    curAct = g.act | 0; const kids = H.acts.children;
     for (let i = 0; i < kids.length; i++) { const s = kids[i]; s.classList.remove('up', 'now', 'done'); s.classList.add(i < g.act ? 'done' : i === g.act ? 'now' : 'up'); }
   }
   /* called whenever the player's weapons/boosts change (the calm HUD shows no build row; the pause menu lists it) */
@@ -149,24 +148,59 @@
     set(H.boss, 'bossOn', on, (e, v) => {
       clearTimeout(bossOutT);
       if (v) {
-        const a = g.actDef || {}; e.hidden = false; e.style.opacity = ''; e.style.setProperty('--bc', a.color || PK.COL.N); H.bossN.textContent = a.bossName || '';
-        H.bossI.innerHTML = ''; H.bossI.appendChild(art(a.key, lg ? 32 : 26) || glyph('skull', lg ? 28 : 24));
+        const a = g.actDef || {}; e.hidden = false; e.style.opacity = ''; e.style.setProperty('--bc', a.color || PK.COL.N); H.bossBar.setAttribute('aria-label', (a.bossName || 'Boss') + ' health');
+        H.bossI.innerHTML = ''; H.bossI.appendChild(art(a.key, lg ? 28 : 22) || glyph('skull', lg ? 26 : 20));
         delete HV.bossHp; delete HV.bossSh; delete HV.fuseOn; delete HV.fuse; e.classList.remove('sh');
         tween(e, [{ opacity: 0, transform: 'translateY(-8px)' }, { opacity: 1, transform: 'none' }], { duration: 260, easing: 'ease-out' });
         tween(H.bossF, [{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }], { duration: 700, easing: 'cubic-bezier(.2,.8,.2,1)' });
-      } else if (still()) e.hidden = true;
-      else { e.style.opacity = '0'; bossOutT = setTimeout(() => { e.hidden = true; e.style.opacity = ''; }, 420); }
+      } else { delete HV.fuseOn; delete HV.fuse; if (still()) e.hidden = true; else { e.style.opacity = '0'; bossOutT = setTimeout(() => { e.hidden = true; e.style.opacity = ''; }, 420); } }
     });
     if (on) {
       let hp = 0, mx = 0, sh = false; for (let i = 0; i < bs.length; i++) { const b = bs[i]; hp += Math.max(0, b.hp); mx += b.maxHp; if (b.shield) sh = true; }
       set(H.bossF, 'bossHp', Math.round(clamp01(hp / (mx || 1)) * 400), (e, v) => { const s = 'scaleX(' + v / 400 + ')'; e.style.transform = s; H.bossG.style.transform = s; });
       set(H.boss, 'bossSh', sh, (e, v) => {
         e.classList.toggle('sh', v); H.bossI.innerHTML = '';
-        H.bossI.appendChild(v ? glyph('shield', lg ? 28 : 24) : (art((g.actDef || {}).key, lg ? 32 : 26) || glyph('skull', lg ? 28 : 24)));
+        H.bossI.appendChild(v ? glyph('shield', lg ? 26 : 21) : (art((g.actDef || {}).key, lg ? 28 : 22) || glyph('skull', lg ? 26 : 20)));
       });
       const f = bs[0].fuse; set(H.fuse, 'fuseOn', f !== undefined, (e, v) => { e.hidden = !v; });
       if (f !== undefined) set(H.fuseF, 'fuse', Math.round(clamp01(f / (bs[0].fuseMax || 1)) * 200), (e, v) => { e.style.width = v / 2 + '%'; H.fuseS.style.left = v / 2 + '%'; H.fuse.classList.toggle('hot', v < 50); });
     }
+  }
+
+  /* ================= how much of the top of the screen the HUD covers ================= */
+  function measure() {
+    const w = window.innerWidth, h = window.innerHeight;
+    if (w === mW && h === mH && mStrip > 0) return;
+    mW = w; mH = h; let strip = 0, boss = 0, fuse = 0;
+    if (root && H.strip) {
+      /* lay everything out invisibly for one synchronous read (nothing is painted in between) */
+      const rH = root.hidden, bH = H.boss.hidden, fH = H.fuse.hidden, rV = root.style.visibility, bV = H.boss.style.visibility;
+      try {
+        if (rH) { root.style.visibility = 'hidden'; root.hidden = false; }
+        if (bH) { H.boss.style.visibility = 'hidden'; H.boss.hidden = false; }
+        H.fuse.hidden = false;
+        strip = H.strip.offsetTop + H.strip.offsetHeight;
+        boss = H.bossBar.offsetTop + H.bossBar.offsetHeight + 3;      /* + the bar's outer ring */
+        fuse = H.fuse.offsetTop + H.fuse.offsetHeight + 5;            /* + the spark riding the fuse */
+      } catch (e) { strip = 0; }
+      H.fuse.hidden = fH; H.boss.hidden = bH; H.boss.style.visibility = bV; root.hidden = rH; root.style.visibility = rV;
+    }
+    if (!(strip > 0)) {           /* not laid out yet: the numbers the layout is designed to */
+      const short = h <= 480;
+      strip = lg ? 76 : w >= 640 ? (short ? 53 : 62) : 90;
+      boss = strip + (lg ? 10 : short ? 5 : 6) + (lg ? 21 : short ? 14 : 18) + 3; fuse = boss + 8;
+      mW = -1;                    /* try a real measurement again next time */
+    }
+    mStrip = strip; mBoss = Math.max(boss, strip); mFuse = Math.max(fuse, mBoss);
+  }
+  /* CSS px from the top of the game area to the bottom edge of the HUD strip. With a boss (withBoss, or its bar is
+     showing) the number includes the boss bar and, for the Spark, the fuse line. It is right before the bar appears and
+     while the HUD is hidden, and it is cached per viewport size, so it is safe to call every frame. */
+  function topInset(withBoss) {
+    measure();
+    if (!(withBoss || HV.bossOn)) return mStrip;
+    const a = PK.ACTS && PK.ACTS[curAct];
+    return (HV.fuseOn !== undefined ? HV.fuseOn : !!(a && a.boss === 'spark')) ? mFuse : mBoss;
   }
 
   /* ================= title card ================= */
@@ -292,11 +326,12 @@
     box.append(
       U.el('div', { class: 'pk-phead' }, U.el('div', {}, spec.eyebrow ? U.el('div', { class: 'eyebrow', text: spec.eyebrow }) : null, U.el('h2', { class: 'display pk-h', text: 'PAUSED' })), snd),
       spec.tip ? U.el('div', { class: 'paper pk-tip' }, U.el('span', { class: 'eyebrow', text: 'Remember this' }), U.el('p', { text: spec.tip })) : null,
-      (spec.build || []).length ? U.el('div', { class: 'pk-build' }, spec.build.map((b) => U.el('span', {}, art(b.art, 20) || U.el('span', { class: 'pk-emoji', text: b.icon || '' }), U.el('span', { class: 'pk-bn', text: b.name || '' }), U.el('b', { class: 'num', text: String(b.lvl) })))) : null,
+      (spec.build || []).length ? U.el('div', { class: 'pk-build', role: 'list', 'aria-label': 'Your weapons and boosts' }, spec.build.map((b) => U.el('span', { role: 'listitem', title: (b.name || '') + ' · level ' + b.lvl, 'aria-label': (b.name || '') + ', level ' + b.lvl },
+        art(b.art, 20) || U.el('span', { class: 'pk-emoji', text: b.icon || '' }), U.el('b', { class: 'num', text: String(b.lvl) })))) : null,
       U.el('div', { class: 'col pk-actions' }, resume,
         U.el('div', { class: 'pk-row2' }, U.el('button', { class: 'btn', type: 'button', text: 'Restart', onclick: () => spec.onRestart && spec.onRestart() }), U.el('button', { class: 'btn danger', type: 'button', text: 'End run', onclick: () => spec.onQuit && spec.onQuit() }))));
     return { veil, box, close() { unmount(rec); } };
   }
 
-  PK.UI = { init, show, reset, setAct, setBuild, sync, banner, bossIntro, pick, confirm, pauseMenu, closeAll };
+  PK.UI = { init, show, reset, setAct, setBuild, sync, banner, bossIntro, pick, confirm, pauseMenu, closeAll, topInset };
 })();

@@ -62,7 +62,10 @@
   }
 
   /* ================= fx helpers ================= */
-  function text(x, y, str, col, size, life) { if (g.texts.length > 70) g.texts.shift(); g.texts.push({ x, y, str: String(str), col: col || '#fff', size: size || 12, life: life || 0.7, dead: false }); }
+  function text(x, y, str, col, size, life) {
+    str = String(str); const hw = g.vw / 2 - 14 - str.length * (size || 12) * 0.3; if (hw > 0) x = Math.max(g.cam.x - hw, Math.min(g.cam.x + hw, x));   /* keep labels on screen */
+    if (g.texts.length > 70) g.texts.shift(); g.texts.push({ x, y, str, col: col || '#fff', size: size || 12, life: life || 0.7, dead: false });
+  }
   /* When an art fx module is loaded it owns every transient effect: the engine only reports events through fx(). */
   const fxArt = () => { const a = PK.art && PK.art.fx; return !!(a && a.emit); };
   function fx(kind, x, y, o) { if (fxArt()) PK.fxEmit(g, kind, x, y, o); }
@@ -131,7 +134,7 @@
   }
   function gem(x, y, v) { if (g.gems.length > 240) { const q = g.gems[(Math.random() * g.gems.length) | 0]; q.v += v; return; } g.gems.push({ x: x + rnd(-5, 5), y: y + rnd(-5, 5), v, pull: false, spd: 0, born: g.t, dead: false }); }
   function drop(kind, x, y, v) { g.pickups.push({ kind, x, y, v: v || 1, pull: false, spd: 0, born: g.t, dead: false }); }
-  function eshot(x, y, a, spd, r, dmg, col) { if (g.ebullets.length > 230) return; g.ebullets.push({ x, y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, r, dmg: dmg * (1 + 0.15 * g.act), life: 6.5, col, dead: false }); }
+  function eshot(x, y, a, spd, r, dmg, col) { if (g.ebullets.length > 230) return; g.ebullets.push({ x, y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, r, dmg: dmg * (1 + 0.15 * g.act), life: 6.5, dead: false }); }
 
   /* ================= weapons ================= */
   const WEP = {
@@ -272,6 +275,7 @@
   }
 
   /* ================= enemies ================= */
+  const onScreen = (e, m) => Math.abs(e.x - g.cam.x) < g.vw / 2 - m && Math.abs(e.y - g.cam.y) < g.vh / 2 - m;
   function edge(m) {
     const hw = g.vw / 2 + m, hh = g.vh / 2 + m, cx = g.cam.x, cy = g.cam.y, per = Math.random() * (hw * 4 + hh * 4);
     if (per < hw * 2) return [cx - hw + per, cy - hh]; if (per < hw * 4) return [cx - hw + (per - hw * 2), cy + hh];
@@ -317,14 +321,15 @@
           break;
         }
         case 'dash': {
-          if (e.st === 'walk') { e.cd -= dt; if (e.cd <= 0 && d < 300) { e.st = 'aim'; e.tm = 0.55; } }
+          if (e.st === 'walk') { e.cd -= dt; if (e.cd <= 0 && d < 300 && onScreen(e, 4)) { e.st = 'aim'; e.tm = 0.55; } }
           else if (e.st === 'aim') { sp = 0; e.dx = ux; e.dy = uy; e.tm -= dt; if (e.tm <= 0) { e.st = 'dash'; e.tm = 0.48; fx('dash', e.x, e.y, { a: Math.atan2(e.dy, e.dx) }); } }
           else { ux = e.dx; uy = e.dy; sp = 400; e.tm -= dt; if (e.tm <= 0) { e.st = 'walk'; e.cd = rnd(2.2, 3.8); } }
           break;
         }
         case 'gun': {
-          if (d < 190) { ux = -ux; uy = -uy; sp *= 0.8; } else if (d < 270) { const nx = -uy; uy = ux; ux = nx; sp *= 0.6; }
-          e.cd -= dt; if (e.cd <= 0 && d < 420) { e.cd = rnd(2.4, 3.2); eshot(e.x, e.y, Math.atan2(dy, dx), 180, 6, e.dmg); }
+          const R0 = Math.max(110, Math.min(240, Math.min(g.vw, g.vh) / 2 - 36));
+          if (d < R0 * 0.72) { ux = -ux; uy = -uy; sp *= 0.8; } else if (d < R0) { const nx = -uy; uy = ux; ux = nx; sp *= 0.6; }
+          e.cd -= dt; if (e.cd <= 0) { if (onScreen(e, 8)) { e.cd = rnd(2.4, 3.2); eshot(e.x, e.y, Math.atan2(dy, dx), 180, 6, e.dmg); } else e.cd = 0.25; }
           break;
         }
       }
@@ -350,7 +355,7 @@
         moveTo(b, p.x, p.y, b.spd, dt); const rate = b.enr > 0 ? 1.5 : 1;
         if ((b.a1 -= dt * rate) <= 0) { b.a1 = 2.4; const n = 3 + b.arms, a0 = ang(b, p); for (let i = 0; i < n; i++) eshot(b.x, b.y, a0 + (i - (n - 1) / 2) * 0.19, 190, 7, 8); sfx('shoot', { pitch: 0.55 }); }
         if ((b.a2 -= dt * rate) <= 0) { b.a2 = 7.5; for (let i = 0; i < 12; i++) eshot(b.x, b.y, i / 12 * TAU + b.t, 140, 7, 8); sfx('explosion'); }
-        if ((b.a3 -= dt) <= 0) { b.a3 = 9; b.arms = Math.min(4, b.arms + 1); for (let i = 0; i < 5; i++) spawnNear('recruit', b, 70); text(b.x, b.y - b.r - 24, 'ARMS RACE! +1 GUN', COL.M, 16, 1.4); }
+        if ((b.a3 -= dt) <= 0) { b.a3 = 9; const more = b.arms < 4; b.arms = Math.min(4, b.arms + 1); for (let i = 0; i < 5; i++) spawnNear('recruit', b, 70); text(b.x, b.y - b.r - 24, more ? 'ARMS RACE! +1 GUN' : 'ARMS RACE!', COL.M, 16, 1.4); }
       } },
     pact: { r: 36, spd: 96, dmg: 14, key: 'A',
       init(b, i) { b.a1 = 1.2 + i * 0.8; },
@@ -387,23 +392,25 @@
       init(b) { b.a1 = 3; b.sp = 0; b.spA = 0; b.spT = 0; b.a2 = 6; b.a3 = 8; b.fuse = 80; b.fuseMax = 80; b.orb = 1; b.blink = 5; },
       update(b, dt, p) {
         const low = b.hp < b.maxHp * 0.5, a = Math.atan2(b.y - p.y, b.x - p.x) + b.orb * 0.9 * dt * (b.enr > 0 ? 1.5 : 1);
-        moveTo(b, p.x + Math.cos(a) * 230, p.y + Math.sin(a) * 230, b.spd * 1.6, dt);
+        const orbR = Math.max(110, Math.min(230, Math.min(g.vw, g.vh) / 2 - 55));
+        moveTo(b, p.x + Math.cos(a) * orbR, p.y + Math.sin(a) * orbR, b.spd * 1.6, dt);
         if ((b.a1 -= dt) <= 0) { b.a1 = 7; b.sp = 3.6; }
         if (b.sp > 0) { b.sp -= dt; if ((b.spT -= dt) <= 0) { b.spT = 0.11; b.spA += 0.33; const arms = low ? 3 : 2; for (let i = 0; i < arms; i++) eshot(b.x, b.y, b.spA + i * TAU / arms, 165, 6, 9, COL.S); } }
         if ((b.a2 -= dt) <= 0) { b.a2 = low ? 7 : 9; text(p.x, p.y - 70, 'CHAIN REACTION! Dodge 1 to 5', COL.S, 17, 1.8); for (let i = 0; i < 5; i++) { const w = 0.9 + i * 0.5; g.zones.push({ kind: 'blast', x: i ? p.x + rnd(-130, 130) : p.x, y: i ? p.y + rnd(-130, 130) : p.y, r: 60 + 10 * i, warn: w, w0: w, n: i + 1, dmg: 14 * (1 + 0.15 * g.act), dead: false }); } }
         if ((b.a3 -= dt) <= 0) { b.a3 = 10; for (let i = 0; i < (low ? 12 : 8); i++) spawnNear('spark', b, 100); }
         if ((b.blink -= dt) <= 0) { b.blink = 6; b.orb *= -1; }
         b.fuse -= dt;
-        if (b.fuse <= 0) { b.fuse = b.fuseMax = 60; banner('THE POWDER KEG BLEW!', 'Beat the Spark before the fuse runs out.', COL.S, '!', 2600); g.flash = 0.5; g.flashCol = '#ffb347'; shake(18); sfx('explosion'); const pl = g.player; pl.iframes = 0; hitPlayer(pl.maxHp * 0.45 / g.mult.dmg, true); }
+        if (b.fuse <= 0) { b.fuse = b.fuseMax = 60; text(g.player.x, g.player.y - 64, 'THE POWDER KEG BLEW!', COL.S, 18, 2); g.flash = 0.5; g.flashCol = '#ffb347'; shake(18); sfx('explosion'); const pl = g.player; pl.iframes = 0; hitPlayer(pl.maxHp * 0.45 / g.mult.dmg, true); }
       } },
   };
   function spawnBoss() {
     const a = g.actDef, kind = a.boss, bd = BOSS[kind], base = a.bossHp;
     const hp = Math.max(base * 0.7, Math.min(base * 1.8, g.dpsPeak * PK.TUNE.bossDps)) * Math.pow(g.mult.hp, 0.8);
     const mk = (i, n) => {
-      /* arrive in view but clear of the HUD: from above on tall screens, from the side on wide ones */
-      const wide = g.vw > g.vh * 1.25, off = wide ? Math.min(g.vw * 0.3, 320) : Math.min(g.vh * 0.26, 300);
-      const q = wide ? [g.player.x + off, g.player.y + (n === 2 ? (i ? 65 : -65) : 0)] : [g.player.x + (n === 2 ? (i ? 70 : -70) : 0), g.player.y - off];
+      /* arrive in view and clear of the HUD: just below the boss bar on tall screens, beside the hero on wide or short ones */
+      const z = g.scale * (g.zoom || 1), inset = PK.UI.topInset ? PK.UI.topInset(true) : 150, above = (g.H / 2 - inset) / z - bd.r - 14;
+      const side = g.vw > g.vh * 1.25 || above < 120, off = side ? Math.max(130, Math.min(g.vw * 0.3, 320)) : Math.min(above, 300);
+      const q = side ? [g.player.x + off, g.player.y + (n === 2 ? (i ? 65 : -65) : 0)] : [g.player.x + (n === 2 ? (i ? 70 : -70) : 0), g.player.y - off];
       const b = { boss: true, kind, def: bd, name: a.bossName, type: 'boss', x: q[0], y: q[1], r: bd.r, hp: hp / n, maxHp: hp / n, spd: bd.spd * g.mult.spd, dmg: bd.dmg * (1 + 0.1 * g.act), kx: 0, ky: 0, flash: 0, seed: 0, t: 0,
         shield: false, shieldT: 0, stun: 0, enr: 0, gates: n === 1 ? [0.66, 0.33] : [0.5], side: i, mate: null, rage: 0, raging: false, aimA: 0, face: -1, born: g.t, st: '', dx: 0, dy: 0, dead: false, xp: 0, elite: false };
       bd.init(b, i); g.enemies.push(b); g.bosses.push(b); return b;
@@ -417,7 +424,13 @@
     const p = g.player; b.t += dt; b.aimA = Math.atan2(p.y - b.y, p.x - b.x); b.face = p.x >= b.x ? 1 : -1; b.raging = b.rage > g.t; if (DBG.freeze) return;
     if (b.enr > 0 && b.enr < 900) b.enr -= dt;
     if (b.shield && b.shieldT > 0 && (b.shieldT -= dt) <= 0) b.shield = false;
-    if (b.stun > 0) b.stun -= dt; else b.def.update(b, dt, p);
+    if (b.stun > 0) b.stun -= dt;
+    else {
+      /* a boss never fights from off-screen: it hurries back into view first */
+      const ox = Math.abs(b.x - g.cam.x) - (g.vw / 2 - b.r * 0.5), oy = Math.abs(b.y - g.cam.y) - (g.vh / 2 - b.r * 0.5);
+      if (ox > 0 || oy > 0) { if (b.st === 'aim' || b.st === 'dash') { b.st = 'walk'; b.cd = 1.2; } moveTo(b, p.x, p.y, Math.max(b.spd * 1.5, 240) + Math.max(ox, oy) * 2, dt); }
+      else b.def.update(b, dt, p);
+    }
     const rr = p.r + b.r - 8, dx = p.x - b.x, dy = p.y - b.y; if (dx * dx + dy * dy < rr * rr) hitPlayer(b.dmg * (b.st === 'dash' ? 1.15 : 1));
   }
   function bossDown(b) {
@@ -509,7 +522,7 @@
   function compact(a) { let j = 0; for (let i = 0; i < a.length; i++) { const o = a[i]; if (!o.dead) a[j++] = o; } a.length = j; }
   function update(dt) {
     g.t += dt; g.actT += dt;
-    updPlayer(dt); buildGrid(); if (g.state === 'play') director(dt); updWeapons(dt); updEnemies(dt); updBullets(dt); updZones(dt); updPickups(dt); updFx(dt);
+    updPlayer(dt); buildGrid(); if (g.state === 'play') { director(dt); updWeapons(dt); } else { g.player.auraR = 0; g.player.orbPos.length = 0; } updEnemies(dt); updBullets(dt); updZones(dt); updPickups(dt); updFx(dt);
     compact(g.enemies); compact(g.bullets); compact(g.ebullets); compact(g.gems); compact(g.pickups); compact(g.parts); compact(g.texts); compact(g.zones); compact(g.arcs); compact(g.rings); compact(g.fxs); compact(g.corpses);
   }
   function idle(dt) {
@@ -542,7 +555,7 @@
       if (errN > 45 && g.state !== 'idle') { errN = 0; bail(); }
     }
     /* slow device? drop the canvas resolution a step so the game stays smooth */
-    if (g.state === 'play' && !g.busy && !g.paused && DBG.speed <= 1) { if (raw > 0.04) lagT += Math.min(raw, 0.1); else lagT = Math.max(0, lagT - raw * 0.5); if (lagT > 3 && (PK.dprCap || 2) > 1) { lagT = 0; PK.dprCap = (PK.dprCap || 2) > 1.5 ? 1.5 : 1; PK.lowFx = true; R.resize(g); } } else lagT = 0;
+    if (g.state === 'play' && !g.busy && !g.paused && DBG.speed <= 1) { if (raw > 0.04) lagT += Math.min(raw, 0.1); else lagT = Math.max(0, lagT - raw * 0.5); if (lagT > 3 && (PK.dprCap || 2) > 1) { lagT = 0; PK.dprCap = (PK.dprCap || 2) > 1.5 ? 1.5 : 1; PK.lowFx = true; R.resize(g); R.draw(g); } } else lagT = 0;
   }
   /* last resort after repeated frame errors: back to the menu instead of a frozen screen */
   function bail() { try { closeMine(); toIdle(); if (window.Toast) Toast.show('The game hit a snag and went back to the menu. Your progress is safe.', { kind: 'bad', ms: 4500 }); if (window.Meta && Meta.showTitle) Meta.showTitle(); } catch (e) {} }
@@ -663,7 +676,7 @@
   }
   function finish(won) {
     if (g.state !== 'play') return; g.state = 'over'; g.timeScale = 0.25; g.slowT = 0; closeMine(); g.paused = false;
-    const p = g.player, s = summary(won); music(won ? 'victory' : 'gameover'); sfx(won ? 'victory' : 'gameover');
+    const p = g.player, s = summary(won); p.down = !won; p.won = !!won; music(won ? 'victory' : 'gameover'); sfx(won ? 'victory' : 'gameover');
     if (!won) { burst(p.x, p.y, '#ffffff', 30); ring(p.x, p.y, 10, 200, '#ff8a80', 8, 0.6); fx('down', p.x, p.y, {}); shake(14); }
     const run = g;
     if (DBG.onEnd) { const cb = DBG.onEnd; DBG.onEnd = null; mark('end'); toIdle(); cb({ summary: s, marks: run.marks }); return; }
